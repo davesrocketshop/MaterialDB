@@ -6,7 +6,7 @@
   <date>2024-11-19</date>
   <maintainer email="dcarter@davidcarter.ca">David Carter</maintainer>
   <license file="LICENSE">LGPL-2.1-or-later</license>
-  <url type="repository" branch="main">https://github.com/davesrocketshop/Rocket</url>
+  <url type="repository" branch="master">https://github.com/davesrocketshop/Rocket</url>
   <icon>Resources/icons/MaterialDBWorkbench.svg</icon>
   <freecadmin>1.1</freecadmin>
 
