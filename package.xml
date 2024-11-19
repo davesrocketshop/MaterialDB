@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+  <name>Rocket</name>
+  <description>A database interface for FreeCAD materials.</description>
+  <version>0.0.1</version>
+  <date>2024-11-19</date>
+  <maintainer email="dcarter@davidcarter.ca">David Carter</maintainer>
+  <license file="LICENSE">LGPL-2.1-or-later</license>
+  <url type="repository" branch="main">https://github.com/davesrocketshop/Rocket</url>
+  <icon>Resources/icons/MaterialDBWorkbench.svg</icon>
+  <freecadmin>1.1</freecadmin>
+
+  <content>
+    <workbench>
+      <classname>MaterialDB</classname>
+      <subdirectory>./</subdirectory>
+      <tag>materials</tag>
+
+      <depend>Material</depend>
+    </workbench>
+  </content>
+
+</package>
