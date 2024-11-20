@@ -24,114 +24,233 @@ __url__ = "https://www.davesrocketshop.com"
 
 import sqlite3
 import Materials
+import os
 
 from MaterialDB.Database import Database
+from MaterialDB.util.UIPath import getUIPath
 
 class DatabaseSQLite(Database):
     """SQLite specific database interface"""
 
-    def __init__(self, rootFolder):
-        self._rootFolder = rootFolder
-        # self._manager = Materials.MaterialManager()
+    def __init__(self, path=None):
+        if path is None:
+            self._database = os.path.join(getUIPath(), 'Resources', 'db', 'Materials.db')
+        else:
+            self._database = path
+        print("database {}".format(self._database))
+        self._createTables()
 
-    def create(self) -> None:
-        """Create a new SQLite database"""
-        pass
+    def databasePath(self):
+        return self._database
 
-    def getConnection(self):
-        # Check if the file exists
-        exists = False
+    def _createTables(self):
+        sql_statements = [
+            """CREATE TABLE IF NOT EXISTS library
+                    (library_id INTEGER PRIMARY KEY ASC,
+                    library_name UNIQUE,
+                    library_icon, 
+                    library_read_only
+                );""",
+            """CREATE TABLE IF NOT EXISTS model
+                    (model_id PRIMARY KEY ASC UNIQUE,
+                    library_id INTEGER,
+                    model_path,
+                    model_type,
+                    model_name,
+                    model_url,
+                    model_description,
+                    model_doi
+                );""",
+        ]
+        with sqlite3.connect(self._database) as connection:
+            try:
+                cursor = connection.cursor()
 
-        # Connect
-        connection = sqlite3.connect(self._rootFolder + "/Resources/db/Materials.db")
+                for statement in sql_statements:
+                    cursor.execute(statement)
 
-        # if the file didn't exist, create the tables
-        if not exists:
-            self._createTables(connection)
+                connection.commit()
+            except sqlite3.OperationalError as e:
+                print("Unable to create tables: ", e)
 
-        return connection
+    def _clearTables(self):
+        with sqlite3.connect(self._database) as connection:
+            cursor = connection.cursor()
 
-    def _createTables(self, connection):
-        cursor = connection.cursor()
+            # Retrieve the list of all tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = cursor.fetchall()
 
-        cursor.execute("""CREATE TABLE IF NOT EXISTS library
-                       (library_id INTEGER PRIMARY KEY ASC, library_name, library_icon, library_read_only)""")
+            # Drop each table
+            for table in tables:
+                cursor.execute(f"DROP TABLE IF EXISTS {table[0]};")
 
-        # # cursor.execute("DROP TABLE IF EXISTS material")
-        # cursor.execute("CREATE TABLE IF NOT EXISTS material (material_index INTEGER PRIMARY KEY ASC, manufacturer, material_name, uuid, type, density, units)")
-        # cursor.execute("CREATE INDEX IF NOT EXISTS idx_material ON material(manufacturer, material_name, type)")
+            # Commit changes and close the connection
+            connection.commit()
 
-        # # cursor.execute("DROP TABLE IF EXISTS component")
-        # cursor.execute("CREATE TABLE IF NOT EXISTS component (component_index INTEGER PRIMARY KEY ASC, manufacturer, part_number, description, material_index, mass, mass_units)")
-        # cursor.execute("CREATE INDEX IF NOT EXISTS idx_component_manufacturer ON component(manufacturer)")
-
-        # cursor.execute("DROP TABLE IF EXISTS tube_type")
-        # cursor.execute("CREATE TABLE IF NOT EXISTS tube_type (tube_type_index INTEGER PRIMARY KEY ASC, type UNIQUE)")
-        # cursor.execute("CREATE INDEX IF NOT EXISTS idx_tube_type_type ON tube_type(type)")
-        # cursor.execute("""INSERT INTO tube_type(type)
-        #                VALUES ('Body Tube'), ('Centering Ring'), ('Tube Coupler'), ('Engine Block'), ('Launch Lug'), ('Bulkhead')
-        #                ON CONFLICT(type) DO NOTHING""")
-
-        # # cursor.execute("DROP TABLE IF EXISTS body_tube")
-        # cursor.execute("CREATE TABLE IF NOT EXISTS body_tube (body_tube_index INTEGER PRIMARY KEY ASC, component_index, tube_type_index, inner_diameter, inner_diameter_units, outer_diameter, outer_diameter_units, length, length_units)")
-        # cursor.execute("CREATE INDEX IF NOT EXISTS idx_body_tube ON body_tube(component_index, tube_type_index)")
-
-        # # cursor.execute("DROP TABLE IF EXISTS nose")
-        # cursor.execute("""CREATE TABLE IF NOT EXISTS nose (nose_index INTEGER PRIMARY KEY ASC, component_index, shape, style, diameter, diameter_units,
-        #     length, length_units, thickness, thickness_units, shoulder_diameter, shoulder_diameter_units, shoulder_length, shoulder_length_units)""")
-
-        # # cursor.execute("DROP TABLE IF EXISTS transition")
-        # cursor.execute("""CREATE TABLE IF NOT EXISTS transition (transition_index INTEGER PRIMARY KEY ASC, component_index, shape, style,
-        #     fore_outside_diameter, fore_outside_diameter_units, fore_shoulder_diameter, fore_shoulder_diameter_units, fore_shoulder_length, fore_shoulder_length_units,
-        #     aft_outside_diameter, aft_outside_diameter_units, aft_shoulder_diameter, aft_shoulder_diameter_units, aft_shoulder_length, aft_shoulder_length_units,
-        #     length, length_units, thickness, thickness_units)""")
-
-        # # cursor.execute("DROP TABLE IF EXISTS rail_button")
-        # cursor.execute("""CREATE TABLE IF NOT EXISTS rail_button (rail_button_index INTEGER PRIMARY KEY ASC, component_index, finish, outer_diameter, outer_diameter_units,
-        #         inner_diameter, inner_diameter_units, height, height_units, base_height, base_height_units, flange_height, flange_height_units, screw_height, screw_height_units,
-        #         drag_coefficient, screw_mass, screw_mass_units, nut_mass, nut_mass_units, screw_diameter, screw_diameter_units, countersink_diameter, countersink_diameter_units, countersink_angle)""")
-
-        # # cursor.execute("DROP TABLE IF EXISTS parachute")
-        # cursor.execute("CREATE TABLE IF NOT EXISTS parachute (parachute_index INTEGER PRIMARY KEY ASC, component_index, line_material_index, sides, lines, diameter, diameter_units, line_length, line_length_units)")
-
-        # # cursor.execute("DROP TABLE IF EXISTS streamer")
-        # cursor.execute("CREATE TABLE IF NOT EXISTS streamer (streamer_index INTEGER PRIMARY KEY ASC, component_index, length, length_units, width, width_units, thickness, thickness_units)")
-
-        connection.commit()
-
-    def libraries(self) -> list:
+    def libraries(self) -> dict:
         """Returns a list of libraries managed by this interface
 
         The list contains a series of tuples describing all libraries managed by
         this module. Each tuple containes the library name, and a boolean to indicate
         if it is a read only library."""
+        libs = {}
+        with sqlite3.connect(self._database) as connection:
+            cursor = connection.cursor()
 
-        libs = []
-        connection = self.getConnection()
-        cursor = connection.cursor()
+            cursor.execute("""SELECT library_name, library_icon, library_read_only
+                            FROM library""")
 
-        cursor.execute("""SELECT library_name, library_icon, library_read_only
-                        FROM library""")
-
-        rows = cursor.fetchall()
-        for row in rows:
-            libs.append((row["library_name"], row["library_icon"], row["library_read_only"]))
+            rows = cursor.fetchall()
+            for row in rows:
+                libs[row[0]] = (row[1], row[2])
         return libs
 
-    def createLibrary(self, name: str) -> None:
+    def _getLibraryId(self, name: str) -> int:
+        """Returns the library id for the named library
+
+        Find the id for the given library."""
+        library_id = 0
+        with sqlite3.connect(self._database) as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""SELECT library_id
+                            FROM library
+                            WHERE library_name = ?""", (name,))
+
+            rows = cursor.fetchall()
+            if len(rows) == 1:
+                library_id = rows[0][0]
+        return library_id
+
+    def createLibrary(self, name: str, icon: str) -> None:
         """Create a new library
 
         Create a new library with the given name"""
-        pass
+        with sqlite3.connect(self._database) as connection:
+            try:
+                cursor = connection.cursor()
+
+                cursor.execute("INSERT INTO library (library_name, library_icon, library_read_only) VALUES (?,?,?)",
+                                    (name, icon, False))
+
+                connection.commit()
+            except sqlite3.IntegrityError as e:
+                print("Unable to create library: ", e)
 
     def renameLibrary(self, oldName: str, newName: str) -> None:
         """Rename an existing library
 
         Change the name of an existing library"""
-        pass
+        with sqlite3.connect(self._database) as connection:
+            cursor = connection.cursor()
 
-    def removeLibrary(self, library: str) -> None:
+            cursor.execute("UPDATE library SET library_name=? WHERE library_name = ?", (newName, oldName))
+
+            connection.commit()
+
+    def removeLibrary(self, name: str) -> None:
         """Delete a library and its contents
 
         Deletes the library and any models or materials it contains"""
+        with sqlite3.connect(self._database) as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("DELETE FROM library WHERE library_name = ?", (name, ))
+
+            connection.commit()
+
+    def libraryModels(self, library: str) -> list:
+        """Returns a list of models managed by this interface
+
+        Each list entry is a tuple containing the UUID, path, and name of the model"""
+        models = {}
+        with sqlite3.connect(self._database) as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""SELECT model_name, model_id, model_path
+                            FROM model m, library l
+                            WHERE m.library_id = l.library_id AND l.library_name = ?""",
+                            (library, ))
+
+            rows = cursor.fetchall()
+            for row in rows:
+                models[row[0]] = (row[1], row[2])
+        return models
+
+    #
+    # Model functions
+    #
+    def getModel(self, uuid: str) -> Materials.Model:
+        """Find a model in the database
+
+        Finds the model, constructs the properties, and returns the model to the user"""
+        model = Materials.Model(uuid)
+        with sqlite3.connect(self._database) as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""SELECT model_path,
+                                model_type,
+                                model_name,
+                                model_url,
+                                model_description,
+                                model_doi
+                           FROM model WHERE model_id = ?""", (uuid, ))
+
+            rows = cursor.fetchall()
+            if len(rows) == 0:
+                pass # Not found
+            elif len(rows) > 1:
+                pass # Too many rows found
+            else:
+                row = rows[0]
+                model.Directory = row[0]
+                model.TypeId = row[1]
+                model.Name = row[2]
+                model.URL = row[3]
+                model.Description = row[4]
+                model.DOI = row[5]
+
+            connection.commit()
+
+        return model
+
+    def addModel(self, library: str, path: str, model: Materials.Model) -> None:
+        libraryId = self._getLibraryId(library)
+
+        with sqlite3.connect(self._database) as connection:
+            try:
+                cursor = connection.cursor()
+                cursor.execute("""INSERT INTO model
+                                    model_id,
+                                    library_id,
+                                    model_path,
+                                    model_type,
+                                    model_name,
+                                    model_url,
+                                    model_description,
+                                    model_doi
+                               VALUES (?,?,?,?,?,?,?,?)""", 
+                            (model.UUID, libraryId, path, model.TypeID, model.Name, model.URL, model.Description, model.DOI))
+
+                connection.commit()
+            except sqlite3.IntegrityError as e:
+                print("Unable to add model: ", e)
+
+    def setModelPath(self, library: str, path: str, model: Materials.Model) -> None:
         pass
+
+    def renameModel(self, library: str, name: str, model: Materials.Model) -> None:
+        pass
+
+    def moveModel(self, library: str, path: str, model: Materials.Model) -> None:
+        """Move a model across libraries
+
+        Move the model to the desired path in a different library. This should also
+        remove the model from the old library if that library is managed by this
+        interface"""
+        pass
+
+    def removeModel(self, model: Materials.Model) -> None:
+        pass
+ 

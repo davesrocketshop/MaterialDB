@@ -22,6 +22,13 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import FreeCAD
+import os
 
-FreeCAD.__unit_test__ += ["TestMaterialDBApp"]
+def getUIPath():
+    """
+    Returns the current module path.
+    Determines where this file is running from, so works regardless of whether
+    the module is installed in the app's module directory or the user's app data folder.
+    (The second overrides the first.)
+    """
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), os.path.pardir))

@@ -22,6 +22,12 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import FreeCAD
+import unittest
 
-FreeCAD.__unit_test__ += ["TestMaterialDBApp"]
+from MaterialDB.Tests.SQLite.TestSQLite import SQLiteTests
+
+def runMaterialDBUnitTests():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.defaultTestLoader.loadTestsFromName("TestMaterialDBApp"))
+    r = unittest.TextTestRunner()
+    r.run(suite)
