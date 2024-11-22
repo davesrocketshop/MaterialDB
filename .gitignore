@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+dump.sql
+util/freecad-addons.zip
+.vscode/launch.json
+test.csv
+freecad-addons.zip
+Resources/db/Materials-test.db
+Resources/db/Materials.db

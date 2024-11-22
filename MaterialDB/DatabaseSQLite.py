@@ -48,7 +48,7 @@ class DatabaseSQLite(Database):
             """CREATE TABLE IF NOT EXISTS library
                     (library_id INTEGER PRIMARY KEY ASC,
                     library_name UNIQUE,
-                    library_icon, 
+                    library_icon,
                     library_read_only
                 );""",
             """CREATE TABLE IF NOT EXISTS model
@@ -230,8 +230,8 @@ class DatabaseSQLite(Database):
                                     model_url,
                                     model_description,
                                     model_doi
-                               VALUES (?,?,?,?,?,?,?,?)""", 
-                            (model.UUID, libraryId, path, model.TypeID, model.Name, model.URL, model.Description, model.DOI))
+                               VALUES (?,?,?,?,?,?,?,?)""",
+                            (model.UUID, libraryId, path, model.TypeId, model.Name, model.URL, model.Description, model.DOI))
 
                 connection.commit()
             except sqlite3.IntegrityError as e:
@@ -253,4 +253,3 @@ class DatabaseSQLite(Database):
 
     def removeModel(self, model: Materials.Model) -> None:
         pass
- 

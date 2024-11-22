@@ -22,57 +22,21 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-from API.RemoteMaterials import RemoteMaterials
+import FreeCAD
 
-class MaterialsDBInterface(RemoteMaterials):
+from DraftTools import translate
 
-    def APIVersion(cls):
-        return (1,0,0)
+from MaterialDB.manager.MaterialDBManager import MaterialsDBManager
 
-    def libraries(self):
-        return []
+class CmdTest:
+    def Activated(self):
+        obj = MaterialsDBManager()
+        print("Test")
 
-    def createLibrary(self, name):
-        pass
+    def IsActive(self):
+        return True
 
-    def renameLibrary(self, oldName, newName):
-        pass
-
-    def removeLibrary(self, oldName, newName):
-        pass
-
-    def libraryModels(self, library):
-        return []
-
-    def libraryMaterials(self, library):
-        return []
-
-    def getModel(self, uuid):
-        pass
-
-    def addModel(self, library, path, model):
-        pass
-
-    def setModelPath(self, library, path, model):
-        pass
-
-    def renameModel(self, library, name, model):
-        pass
-
-    def removeModel(self, model):
-        pass
-
-    def getMaterial(self, uuid):
-        pass
-
-    def addMaterial(self, library, path, material):
-        pass
-
-    def setMaterialPath(self, library, path, material):
-        pass
-
-    def renameMaterial(self, library, name, material):
-        pass
-
-    def removeMaterial(self, material):
-        pass
+    def GetResources(self):
+        return {'MenuText': translate("Rocket", 'Test'),
+                'ToolTip': translate("Rocket", 'Test'),
+                'Pixmap': FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDBWorkbench.svg"}

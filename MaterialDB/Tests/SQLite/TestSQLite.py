@@ -21,7 +21,7 @@
 
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
-    
+
 import unittest
 import os
 import sqlite3
@@ -47,25 +47,25 @@ class SQLiteTests(unittest.TestCase):
 
     def testLibraryCreation(self):
         libraries = self._db.libraries()
-        self.assertEquals(len(libraries), 0)
+        self.assertEqual(len(libraries), 0)
         self._db.createLibrary("Test1", "icon1")
         self._db.createLibrary("Test2", "icon2")
         libraries = self._db.libraries()
-        self.assertEquals(len(libraries), 2)
+        self.assertEqual(len(libraries), 2)
         self.assertIn("Test1", libraries)
         self.assertIn("Test2", libraries)
 
         # Test duplicate library name
         self._db.createLibrary("Test1", "icon1")
         libraries = self._db.libraries()
-        self.assertEquals(len(libraries), 2)
+        self.assertEqual(len(libraries), 2)
         self.assertIn("Test1", libraries)
         self.assertIn("Test2", libraries)
 
         # Test no icon
         self._db.createLibrary("Test3", None)
         libraries = self._db.libraries()
-        self.assertEquals(len(libraries), 3)
+        self.assertEqual(len(libraries), 3)
         self.assertIn("Test1", libraries)
         self.assertIn("Test2", libraries)
         self.assertIn("Test3", libraries)
@@ -73,28 +73,28 @@ class SQLiteTests(unittest.TestCase):
         # Test library removal
         self._db.removeLibrary("Test2")
         libraries = self._db.libraries()
-        self.assertEquals(len(libraries), 2)
+        self.assertEqual(len(libraries), 2)
         self.assertIn("Test1", libraries)
         self.assertIn("Test3", libraries)
 
         # Test library rename
         self._db.renameLibrary("Test3", "Phantasm")
         libraries = self._db.libraries()
-        self.assertEquals(len(libraries), 2)
+        self.assertEqual(len(libraries), 2)
         self.assertIn("Test1", libraries)
         self.assertIn("Phantasm", libraries)
         self._db.removeLibrary("Phantasm")
         libraries = self._db.libraries()
-        self.assertEquals(len(libraries), 1)
+        self.assertEqual(len(libraries), 1)
         self.assertIn("Test1", libraries)
 
     def testModelCreation(self):
         libraries = self._db.libraries()
-        self.assertEquals(len(libraries), 0)
+        self.assertEqual(len(libraries), 0)
         self._db.createLibrary("Test1", "icon1")
         self._db.createLibrary("Test2", "icon1")
         libraries = self._db.libraries()
-        self.assertEquals(len(libraries), 2)
+        self.assertEqual(len(libraries), 2)
         self.assertIn("Test1", libraries)
         self.assertIn("Test2", libraries)
 
@@ -102,8 +102,7 @@ class SQLiteTests(unittest.TestCase):
         model.Name = "Test1 Model"
         self._db.addModel("Test1", "", model)
         models = self._db.libraryModels("Test1")
-        self.assertEquals(len(models), 1)
+        self.assertEqual(len(models), 1)
         self.assertIn("Test1 Model", models)
         models = self._db.libraryModels("Test2")
-        self.assertEquals(len(models), 0)
-    
+        self.assertEqual(len(models), 0)

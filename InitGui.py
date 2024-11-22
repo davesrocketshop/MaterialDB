@@ -42,11 +42,13 @@ class MaterialDBWorkbench ( FreeCADGui.Workbench ):
         FreeCADGui.addLanguagePath(FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/translations")
 
         # load the module
-        # import MaterialDBGui
+        import MaterialDBGui
         from PySide.QtCore import QT_TRANSLATE_NOOP
 
         self._loadMaterialModule()
 
+        self.appendToolbar(QT_TRANSLATE_NOOP('MaterialDB', 'MaterialDB'),
+                        ['MaterialDB_Test'])
         # self.appendToolbar(QT_TRANSLATE_NOOP('MaterialDB', 'MaterialDB'),
         #                 ['MaterialDB_MaterialEditor', 'MaterialDB_NewMaterialEditor', "Materials_Edit",
         #                  'Separator', 'Materials_ModelSelect',

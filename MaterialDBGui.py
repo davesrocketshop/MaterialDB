@@ -24,8 +24,6 @@ __url__ = "https://www.davesrocketshop.com"
 
 import FreeCADGui
 
-# from MaterialDB.CmdMaterialEditor import CmdMaterialEditor, CmdNewMaterialEditor, CmdValuesEditor
+from MaterialDB.CmdTest import CmdTest
 
-# FreeCADGui.addCommand('MaterialDB_MaterialEditor', CmdMaterialEditor())
-# FreeCADGui.addCommand('MaterialDB_NewMaterialEditor', CmdNewMaterialEditor())
-# FreeCADGui.addCommand('MaterialDB_ValuesEditor', CmdValuesEditor())
+FreeCADGui.addCommand('MaterialDB_Test', CmdTest())
