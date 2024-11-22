@@ -185,7 +185,7 @@ class DatabaseSQLite(Database):
         """Find a model in the database
 
         Finds the model, constructs the properties, and returns the model to the user"""
-        model = Materials.Model(uuid)
+        model = Materials.Model()
         with sqlite3.connect(self._database) as connection:
             cursor = connection.cursor()
 
@@ -204,6 +204,7 @@ class DatabaseSQLite(Database):
                 pass # Too many rows found
             else:
                 row = rows[0]
+                model.UUID = uuid
                 model.Directory = row[0]
                 model.TypeId = row[1]
                 model.Name = row[2]
@@ -222,14 +223,14 @@ class DatabaseSQLite(Database):
             try:
                 cursor = connection.cursor()
                 cursor.execute("""INSERT INTO model
-                                    model_id,
+                                    (model_id,
                                     library_id,
                                     model_path,
                                     model_type,
                                     model_name,
                                     model_url,
                                     model_description,
-                                    model_doi
+                                    model_doi)
                                VALUES (?,?,?,?,?,?,?,?)""",
                             (model.UUID, libraryId, path, model.TypeId, model.Name, model.URL, model.Description, model.DOI))
 
