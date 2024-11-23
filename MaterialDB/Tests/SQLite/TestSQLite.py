@@ -28,7 +28,7 @@ import sqlite3
 
 import Materials
 
-from MaterialDB.DatabaseSQLite import DatabaseSQLite
+from MaterialDB.Database.DatabaseSQLite import DatabaseSQLite
 from MaterialDB.util.UIPath import getUIPath
 
 class SQLiteTests(unittest.TestCase):

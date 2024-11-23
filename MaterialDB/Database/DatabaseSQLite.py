@@ -26,7 +26,7 @@ import sqlite3
 import Materials
 import os
 
-from MaterialDB.Database import Database
+from MaterialDB.Database.Database import Database
 from MaterialDB.util.UIPath import getUIPath
 
 class DatabaseSQLite(Database):

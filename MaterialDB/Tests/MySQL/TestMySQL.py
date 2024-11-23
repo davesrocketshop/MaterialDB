@@ -24,11 +24,18 @@ __url__ = "https://www.davesrocketshop.com"
 
 import unittest
 
-from MaterialDB.Tests.SQLite.TestSQLite import SQLiteTests
-from MaterialDB.Tests.MySQL.TestMySQL import MySQLTests
+from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
+from MaterialDB.util.UIPath import getUIPath
 
-def runMaterialDBUnitTests():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.defaultTestLoader.loadTestsFromName("TestMaterialDBApp"))
-    r = unittest.TextTestRunner()
-    r.run(suite)
+class MySQLTests(unittest.TestCase):
+
+    def setUp(self):
+        self._db = DatabaseMySQL()
+
+    def tearDown(self):
+        pass
+
+    def testConnection(self):
+        self.assertIsNone(self._db._connection)
+        self._db._connect()
+        self.assertIsNotNone(self._db._connection)

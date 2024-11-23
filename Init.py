@@ -24,4 +24,9 @@ __url__ = "https://www.davesrocketshop.com"
 
 import FreeCAD
 
+# Add the manager to the materials configuration
+managerConfig = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Material/ExternalInterface/Material DB")
+managerConfig.SetString("Module", "MaterialDB.manager.MaterialDBManager")
+managerConfig.SetString("Class", "MaterialsDBManager")
+
 FreeCAD.__unit_test__ += ["TestMaterialDBApp"]

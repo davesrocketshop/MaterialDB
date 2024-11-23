@@ -29,7 +29,7 @@ from MaterialAPI.MaterialManagerExternal import MaterialManagerExternal
 class MaterialsDBManager(MaterialManagerExternal):
 
     def libraries(self) -> list:
-        return [("Test Library", None, True)]
+        return [("Test Library", None, True), ("Test Library 2", None, True)]
 
     def createLibrary(self, name: str, icon: str) -> None:
         pass
