@@ -29,7 +29,7 @@ CREATE TABLE model (
     model_id CHAR(36) NOT NULL PRIMARY KEY,
 	library_id INTEGER NOT NULL,
 	folder_id INTEGER,
-	model_type ENUM('Model', 'AppearanceModel') NOT NULL,
+	model_type ENUM('Physical', 'Appearance') NOT NULL,
 	model_name VARCHAR(255) NOT NULL,
 	model_url VARCHAR(255),
 	model_description TEXT,

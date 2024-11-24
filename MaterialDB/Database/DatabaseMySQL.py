@@ -33,10 +33,14 @@ class DatabaseMySQL:
 
     def _connect(self):
         if self._connection is None:
-            self._connection = pyodbc.connect('DSN=material;charset=utf8mb4')
-            self._connection.setdecoding(pyodbc.SQL_CHAR, encoding='utf-8')
-            self._connection.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
-            self._connection.setencoding(encoding='utf-8')
+            try:
+                self._connection = pyodbc.connect('DSN=material;charset=utf8mb4')
+                self._connection.setdecoding(pyodbc.SQL_CHAR, encoding='utf-8')
+                self._connection.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
+                self._connection.setencoding(encoding='utf-8')
+            except Exception as ex:
+                print("Unable to create connection:", ex)
+                self._connection = None
 
     def _findLibrary(self, name):
         self._connect()
@@ -49,19 +53,22 @@ class DatabaseMySQL:
         return 0
 
     def createLibrary(self, name, icon, readOnly):
-        self._connect()
-        cursor = self._connection.cursor()
+        try:
+            self._connect()
+            cursor = self._connection.cursor()
 
-        cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
-        row = cursor.fetchone()
-        if not row:
-            if icon is None:
-                cursor.execute("INSERT INTO library (library_name, library_read_only) "
-                                      "VALUES (?, ?)", name, readOnly)
-            else:
-                cursor.execute("INSERT INTO library (library_name, library_icon, library_read_only) "
-                        "VALUES (?, ?, ?)", name, icon, readOnly)
-            self._connection.commit()
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
+            row = cursor.fetchone()
+            if not row:
+                if icon is None:
+                    cursor.execute("INSERT INTO library (library_name, library_read_only) "
+                                        "VALUES (?, ?)", name, readOnly)
+                else:
+                    cursor.execute("INSERT INTO library (library_name, library_icon, library_read_only) "
+                            "VALUES (?, ?, ?)", name, icon, readOnly)
+                self._connection.commit()
+        except Exception as ex:
+            print("Unable to create library:", ex)
 
     def _lastId(self):
         """Returns the last insertion id"""
@@ -72,7 +79,7 @@ class DatabaseMySQL:
             return row.id
         return 0
 
-    def _createPath(self, libraryIndex, parentIndex, pathIndex, pathList):
+    def _createPathRecursive(self, libraryIndex, parentIndex, pathIndex, pathList):
         self._connect()
         newId = 0
         cursor = self._connection.cursor()
@@ -105,13 +112,13 @@ class DatabaseMySQL:
         index = parentIndex + 1
         if index >= (len(pathList) - 1):
             return newId
-        return self._createPath(libraryIndex, newId, index, pathList)
+        return self._createPathRecursive(libraryIndex, newId, index, pathList)
 
-    def createPath(self, libraryIndex, path):
+    def _createPath(self, libraryIndex, path):
         newId = 0
         pathList = path.split('/')
         if len(pathList) >= 2:
-            return self._createPath(libraryIndex, 0, 0, pathList)
+            return self._createPathRecursive(libraryIndex, 0, 0, pathList)
         return newId
 
     def _foreignKeysIgnore(self, cursor):
@@ -187,7 +194,7 @@ class DatabaseMySQL:
     def _createModel(self, libraryIndex, path, model):
         self._connect()
         cursor = self._connection.cursor()
-        pathIndex = self.createPath(libraryIndex, path)
+        pathIndex = self._createPath(libraryIndex, path)
         cursor.execute("SELECT model_id FROM model WHERE model_id = ?", model.UUID)
         row = cursor.fetchone()
         if not row:
@@ -198,13 +205,13 @@ class DatabaseMySQL:
                         libraryIndex,
                         (None if pathIndex == 0 else pathIndex),
                         model.Name,
-                        model.Base,
+                        model.Type,
                         model.URL,
                         model.Description,
                         model.DOI,
                         )
 
-            for inherit in model.Inheritance:
+            for inherit in model.Inherited:
                 self._createInheritance(model.UUID, inherit)
 
             for property in model.Properties:
@@ -212,9 +219,12 @@ class DatabaseMySQL:
         self._connection.commit()
 
     def createModel(self, libraryName, path, model):
-        libraryIndex = self._findLibrary(libraryName)
-        if libraryIndex > 0:
-            self._createModel(libraryIndex, path, model)
+        try:
+            libraryIndex = self._findLibrary(libraryName)
+            if libraryIndex > 0:
+                self._createModel(libraryIndex, path, model)
+        except Exception as ex:
+            print("Unable to create model:", ex)
 
     def _createTag(self, materialUUID, tag):
         tagId = 0
@@ -257,18 +267,21 @@ class DatabaseMySQL:
                        materialUUID, name, value, value)
         self._connection.commit()
 
-    def _createMaterialProperty(self, materialUUID, property):
-        if property.Type == "List" or \
-           property.Type == "Array2D" or \
-           property.Type == "Array3D" or \
-           property.Type == "Image" or \
-           property.Type == "File" or \
-           property.Type == "FileList" or \
-           property.Type == "ImageList" or \
-           property.Type == "SVG":
-            pass
-        else:
-            self._createStringValue(materialUUID, property.Name, property.Value)
+    # def _createMaterialProperty(self, materialUUID, property):
+    #     if property.Type == "List" or \
+    #        property.Type == "Array2D" or \
+    #        property.Type == "Array3D" or \
+    #        property.Type == "Image" or \
+    #        property.Type == "File" or \
+    #        property.Type == "FileList" or \
+    #        property.Type == "ImageList" or \
+    #        property.Type == "SVG":
+    #         pass
+    #     else:
+    #         self._createStringValue(materialUUID, property.Name, property.Value)
+
+    def _createMaterialProperty(self, materialUUID, name, value):
+        self._createStringValue(materialUUID, name, value)
 
     def _createMaterial(self, libraryIndex, path, material):
         self._connect()
@@ -295,7 +308,7 @@ class DatabaseMySQL:
                             material.Name,
                             material.Author,
                             material.License,
-                            material.ParentUUID,
+                            material.Parent,
                             material.Description,
                             material.URL,
                             material.Reference,
@@ -310,18 +323,21 @@ class DatabaseMySQL:
             for model in material.AppearanceModels:
                 self._createMaterialModel(material.UUID, model)
 
-            for property in material.PhysicalProperties:
-                self._createMaterialProperty(material.UUID, property)
+            for name, value in material.PhysicalProperties.items():
+                self._createMaterialProperty(material.UUID, name, value)
 
-            for property in material.AppearanceProperties:
-                self._createMaterialProperty(material.UUID, property)
+            for name, value in material.AppearanceProperties.items():
+                self._createMaterialProperty(material.UUID, name, value)
 
         self._connection.commit()
 
     def createMaterial(self, libraryName, path, material):
-        libraryIndex = self._findLibrary(libraryName)
-        if libraryIndex > 0:
-            self._createMaterial(libraryIndex, path, material)
+        try:
+            libraryIndex = self._findLibrary(libraryName)
+            if libraryIndex > 0:
+                self._createMaterial(libraryIndex, path, material)
+        except Exception as ex:
+            print("Unable to create material:", ex)
 
     def getLibraries(self):
         libraries = []
@@ -567,7 +583,7 @@ class DatabaseMySQL:
             material.Name = row.material_name
             material.Author = row.material_author
             material.License = row.material_license
-            material.ParentUUID = row.material_parent_uuid
+            material.Parent = row.material_parent_uuid
             material.Description = row.material_description
             material.URL = row.material_url
             material.Reference = row.material_reference
