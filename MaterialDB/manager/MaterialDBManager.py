@@ -34,25 +34,37 @@ class MaterialsDBManager(MaterialManagerExternal):
         self._db = DatabaseMySQL()
 
     def libraries(self) -> list:
+        print("libraries()")
         return self._db.getLibraries()
 
-    def createLibrary(self, name: str, icon: str) -> None:
-        pass
+    def modelLibraries(self) -> list:
+        print("modelLibraries()")
+        return self._db.getModelLibraries()
+
+    def materialLibraries(self) -> list:
+        print("materialLibraries()")
+        return self._db.getMaterialLibraries()
+
+    def createLibrary(self, name: str, icon: str, readOnly: bool) -> None:
+        print("createLibrary('{}', '{}', '{}')".format(name, icon, readOnly))
+        self._db.createLibrary(name, icon, readOnly)
 
     def renameLibrary(self, oldName: str, newName: str) -> None:
-        pass
+        print("renameLibrary('{}', '{}')".format(oldName, newName))
 
     def changeIcon(self, icon: str) -> None:
-        pass
+        print("changeIcon('{}')".format(icon))
 
     def removeLibrary(self, library: str) -> None:
-        pass
+        print("removeLibrary('{}')".format(library))
 
     def libraryModels(self, library: str) -> list:
-        pass
+        print("libraryModels('{}')".format(library))
+        return []
 
     def libraryMaterials(self, library: str) -> list:
-        pass
+        print("libraryMaterials('{}')".format(library))
+        return []
 
     #
     # Model methods
@@ -62,38 +74,40 @@ class MaterialsDBManager(MaterialManagerExternal):
         pass
 
     def addModel(self, library: str, path: str, model: Materials.Model) -> None:
-        pass
+        print("addModel('{}', '{}', '{}')".format(library, path, model.Name))
+        self._db.createModel(library, path, model)
 
     def setModelPath(self, library: str, path: str, model: Materials.Model) -> None:
-        pass
+        print("setModelPath('{}', '{}', '{}')".format(library, path, model.Name))
 
     def renameModel(self, library: str, name: str, model: Materials.Model) -> None:
-        pass
+        print("renameModel('{}', '{}', '{}')".format(library, name, model.Name))
 
     def moveModel(self, library: str, path: str, model: Materials.Model) -> None:
-        pass
+        print("moveModel('{}', '{}', '{}')".format(library, path, model.Name))
 
     def removeModel(self, model: Materials.Model) -> None:
-        pass
+        print("removeModel('{}')".format(model.Name))
 
     #
     # Material methods
     #
 
     def getMaterial(self, uuid: str) -> Materials.Material:
-        pass
+        print("getMaterial('{}')".format(uuid))
 
     def addMaterial(self, library: str, path: str, material: Materials.Material) -> None:
-        pass
+        print("addMaterial('{}', '{}', '{}')".format(library, path, material.Name))
+        self._db.createMaterial(library, path, material)
 
     def setMaterialPath(self, library: str, path: str, material: Materials.Material) -> None:
-        pass
+        print("setMaterialPath('{}', '{}', '{}')".format(library, path, material.Name))
 
     def renameMaterial(self, library: str, name: str, material: Materials.Material) -> None:
-        pass
+        print("renameMaterial('{}', '{}', '{}')".format(library, name, material.Name))
 
     def moveMaterial(self, library: str, path: str, material: Materials.Material) -> None:
-        pass
+        print("moveMaterial('{}', '{}', '{}')".format(library, path, material.Name))
 
     def removeMaterial(self, material: Materials.Material) -> None:
-        pass
+        print("removeMaterial('{}')".format(material.Name))

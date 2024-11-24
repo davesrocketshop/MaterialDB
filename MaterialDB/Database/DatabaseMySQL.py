@@ -48,19 +48,19 @@ class DatabaseMySQL:
             return row.library_id
         return 0
 
-    def createLibrary(self, name, icon, readOny):
+    def createLibrary(self, name, icon, readOnly):
         self._connect()
         cursor = self._connection.cursor()
 
         cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
         row = cursor.fetchone()
-        if row:
+        if not row:
             if icon is None:
                 cursor.execute("INSERT INTO library (library_name, library_read_only) "
-                                      "VALUES (?, ?)", name, readOny)
+                                      "VALUES (?, ?)", name, readOnly)
             else:
                 cursor.execute("INSERT INTO library (library_name, library_icon, library_read_only) "
-                        "VALUES (?, ?, ?)", name, icon, readOny)
+                        "VALUES (?, ?, ?)", name, icon, readOnly)
             self._connection.commit()
 
     def _lastId(self):
@@ -211,6 +211,11 @@ class DatabaseMySQL:
                 self._createModelProperty(model.UUID, property)
         self._connection.commit()
 
+    def createModel(self, libraryName, path, model):
+        libraryIndex = self._findLibrary(libraryName)
+        if libraryIndex > 0:
+            self._createModel(libraryIndex, path, model)
+
     def _createTag(self, materialUUID, tag):
         tagId = 0
         self._connect()
@@ -313,12 +318,41 @@ class DatabaseMySQL:
 
         self._connection.commit()
 
+    def createMaterial(self, libraryName, path, material):
+        libraryIndex = self._findLibrary(libraryName)
+        if libraryIndex > 0:
+            self._createMaterial(libraryIndex, path, material)
+
     def getLibraries(self):
         libraries = []
         self._connect()
         cursor = self._connection.cursor()
         cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
                                     "library")
+        rows = cursor.fetchall()
+        for row in rows:
+            libraries.append((row.library_name, row.library_icon, row.library_read_only))
+
+        return libraries
+
+    def getModelLibraries(self):
+        libraries = []
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only"
+                       " FROM library l, model m WHERE l.library_id = m.library_id")
+        rows = cursor.fetchall()
+        for row in rows:
+            libraries.append((row.library_name, row.library_icon, row.library_read_only))
+
+        return libraries
+
+    def getMaterialLibraries(self):
+        libraries = []
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only"
+                       " FROM library l, material m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
         for row in rows:
             libraries.append((row.library_name, row.library_icon, row.library_read_only))
@@ -346,22 +380,8 @@ class DatabaseMySQL:
         row = cursor.fetchone()
         if row:
             # This needs to be a library object
-            return Materials.MaterialModelExternal(row.library_name, row.library_icon, row.library_read_only)
+            return Materials.MaterialLibrary(row.library_name, row.library_icon, row.library_read_only)
         return None
-
-    def migrateMaterialLibrary(self, name, materialPathMap):
-        libraryIndex = self._findLibrary(name)
-
-        # This might have to be done on the C++ side
-        #for (const auto& [path, material] : *_materialPathMap) {
-        #    self._createMaterial(libraryIndex, path, material)
-
-    def migrateModelLibrary(self, name, modelPathMap):
-        libraryIndex = self._findLibrary(name)
-
-        # This might have to be done on the C++ side
-        #for (const auto& [path, model] : *modelPathMap) {
-        #    self._createModel(libraryIndex, path, model)
 
     def _getPath(self, folderId):
         path = ""
