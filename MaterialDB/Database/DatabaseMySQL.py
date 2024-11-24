@@ -24,9 +24,9 @@ __url__ = "https://www.davesrocketshop.com"
 
 import pyodbc
 
-from MaterialDB.Database.Database import Database
+import Materials
 
-class DatabaseMySQL(Database):
+class DatabaseMySQL:
 
     def __init__(self):
         self._connection = None
@@ -196,7 +196,7 @@ class DatabaseMySQL(Database):
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         model.UUID,
                         libraryIndex,
-                        (pathIndex == 0 ? None : pathIndex),
+                        (None if pathIndex == 0 else pathIndex),
                         model.Name,
                         model.Base,
                         model.URL,
@@ -231,3 +231,347 @@ class DatabaseMySQL(Database):
             cursor.execute("INSERT INTO material_tag_mapping (material_id, material_tag_id) "
                           "VALUES (?, ?)", materialUUID, tagId)
         self._connection.commit()
+
+    def _createMaterialModel(self, materialUUID, modelUUID):
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT material_id FROM material_models WHERE material_id = ? AND model_id = ?",
+                       materialUUID, modelUUID)
+        row = cursor.fetchone()
+        if not row:
+            cursor.execute("INSERT INTO material_models (material_id, model_id) "
+                                    "VALUES (?, ?)", materialUUID, modelUUID)
+        self._connection.commit()
+
+    def _createStringValue(self, materialUUID, name, value):
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, "
+                      "material_property_value) "
+                      "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE material_property_value = ?",
+                       materialUUID, name, value, value)
+        self._connection.commit()
+
+    def _createMaterialProperty(self, materialUUID, property):
+        if property.Type == "List" or \
+           property.Type == "Array2D" or \
+           property.Type == "Array3D" or \
+           property.Type == "Image" or \
+           property.Type == "File" or \
+           property.Type == "FileList" or \
+           property.Type == "ImageList" or \
+           property.Type == "SVG":
+            pass
+        else:
+            self._createStringValue(materialUUID, property.Name, property.Value)
+
+    def _createMaterial(self, libraryIndex, path, material):
+        self._connect()
+
+        pathIndex = self._createPath(libraryIndex, path)
+
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT material_id FROM material WHERE material_id = ?",
+                       material.UUID)
+        row = cursor.fetchone()
+        if not row:
+            # Mass updates may insert models out of sequence creating a foreign key
+            # violation
+            self._foreignKeysIgnore(cursor)
+
+            cursor.execute("INSERT INTO material (material_id, library_id, folder_id, "
+                            "material_name, material_author, material_license, "
+                            "material_parent_uuid, material_description, material_url, "
+                            "material_reference) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            material.UUID,
+                            libraryIndex,
+                            (None if pathIndex == 0 else pathIndex),
+                            material.Name,
+                            material.Author,
+                            material.License,
+                            material.ParentUUID,
+                            material.Description,
+                            material.URL,
+                            material.Reference,
+                            )
+
+            for tag in material.Tags:
+                self._createTag(material.UUID, tag)
+
+            for model in material.PhysicalModels:
+                self._createMaterialModel(material.UUID, model)
+
+            for model in material.AppearanceModels:
+                self._createMaterialModel(material.UUID, model)
+
+            for property in material.PhysicalProperties:
+                self._createMaterialProperty(material.UUID, property)
+
+            for property in material.AppearanceProperties:
+                self._createMaterialProperty(material.UUID, property)
+
+        self._connection.commit()
+
+    def getLibraries(self):
+        libraries = []
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
+                                    "library")
+        rows = cursor.fetchall()
+        for row in rows:
+            libraries.append((row.library_name, row.library_icon, row.library_read_only))
+
+        return libraries
+
+    def _getLibrary(self, libraryId):
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
+                                    "library WHERE library_id = ?",
+                       libraryId)
+        row = cursor.fetchone()
+        if row:
+            return (row.library_name, row.library_icon, row.library_read_only)
+        return None
+
+    def _getMaterialLibrary(self, libraryId):
+        self._connect()
+        cursor = self._connection.cursor()
+        # Need to add logic to ensure there's a material in there?
+        cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
+                                    "library WHERE library_id = ?",
+                       libraryId)
+        row = cursor.fetchone()
+        if row:
+            # This needs to be a library object
+            return Materials.MaterialModelExternal(row.library_name, row.library_icon, row.library_read_only)
+        return None
+
+    def migrateMaterialLibrary(self, name, materialPathMap):
+        libraryIndex = self._findLibrary(name)
+
+        # This might have to be done on the C++ side
+        #for (const auto& [path, material] : *_materialPathMap) {
+        #    self._createMaterial(libraryIndex, path, material)
+
+    def migrateModelLibrary(self, name, modelPathMap):
+        libraryIndex = self._findLibrary(name)
+
+        # This might have to be done on the C++ side
+        #for (const auto& [path, model] : *modelPathMap) {
+        #    self._createModel(libraryIndex, path, model)
+
+    def _getPath(self, folderId):
+        path = ""
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT folder_name, parent_id FROM folder WHERE folder_id = ?",
+                       folderId)
+        row = cursor.fetchone()
+        if row:
+            if row.parent_id is None:
+                path = row.folder_name
+            else:
+                path = self._getPath(row.parent_id) + '/' + path
+        return path
+
+    def _getInherits(self, uuid):
+        inherits = []
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT inherits_id FROM model_inheritance "
+                                    "WHERE model_id = ?",
+                       uuid)
+        rows = cursor.fetchall()
+        for row in rows:
+            inherits.append(row.inherits_id)
+
+        return inherits
+
+    def _getModelColumns(self, uuid, propertyName):
+        columns = []
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT model_property_id FROM model_property "
+                                    "WHERE model_id = ? AND model_property_name = ?",
+                       uuid, propertyName)
+        propertyId = 0
+        row = cursor.fetchone()
+        if row:
+            propertyId = row.model_property_id
+            cursor.execute("SELECT model_property_name, "
+                                    "model_property_display_name, model_property_type, "
+                                    "model_property_units, model_property_url, "
+                                    "model_property_description FROM model_property_column "
+                                    "WHERE model_property_id = ?",
+                        propertyId)
+
+            rows = cursor.fetchall()
+            for row in rows:
+                prop = Materials.Model.ModelProperty()
+                prop.Name = row.model_property_name
+                prop.DisplayName = row.model_property_display_name
+                prop.Type = row.model_property_type
+                prop.Units = row.model_property_units
+                prop.URL = row.model_property_url
+                prop.Description = row.model_property_description
+
+                columns.append(prop)
+
+        return columns
+
+    def _getModelProperties(self, uuid):
+        properties = []
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT model_property_name, "
+                                    "model_property_display_name, model_property_type, "
+                                    "model_property_units, model_property_url, "
+                                    "model_property_description FROM model_property "
+                                    "WHERE model_id = ?",
+                       uuid)
+
+        rows = cursor.fetchall()
+        for row in rows:
+            prop = Materials.Model.ModelProperty()
+            prop.Name = row.model_property_name
+            prop.DisplayName = row.model_property_display_name
+            prop.Type = row.model_property_type
+            prop.Units = row.model_property_units
+            prop.URL = row.model_property_url
+            prop.Description = row.model_property_description
+
+            properties.append(prop)
+
+        # This has to happen after the properties are retrieved to prevent nested queries
+        for property in properties:
+            columns = self._getModelColumns(uuid, property.Name)
+            for column in columns:
+                property.addColumns(column)
+
+        return properties
+
+    def getModel(self, uuid):
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT library_id, folder_id, model_type, "
+            "model_name, model_url, model_description, model_doi FROM model WHERE model_id = ?",
+                       uuid)
+
+        row = cursor.fetchone()
+        if row:
+            model = Materials.Model()
+            model.UUID = uuid
+            model.Type = row.model_type
+            model.Name = row.model_name
+            model.URL = row.model_url
+            model.Description = row.model_description
+            model.DOI = row.model_doi
+
+            model.Library = self._getLibrary(row.library_id)
+
+            path = self._getPath(row.folder_id) + "/" + row.model_name
+            model.Path = path
+
+            inherits = self._getInherits(uuid)
+            for inherit in inherits:
+                model.addInheritance(inherit)
+
+            properties = self._getModelProperties(uuid)
+            for property in properties:
+                model.addProperty(inherit)
+
+            return model
+
+        return None
+
+    def _getTags(self, uuid):
+        tags = []
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT t.material_tag_name FROM material_tag t, material_tag_mapping m "
+                          "WHERE m.material_id = ? AND m.material_tag_id = t.material_tag_id",
+                       uuid)
+
+        rows = cursor.fetchall()
+        for row in rows:
+            tags.append(row.material_tag_name)
+
+        return tags
+
+    def _getMaterialModels(self, uuid, isPhysical):
+        models = []
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT m1.model_id FROM material_models m1, model m2 "
+            "WHERE m1.material_id = ? AND m1.model_id = m2.model_id AND m2.model_type = ?",
+                       uuid,
+                       ("Model" if isPhysical else "AppearanceModel"))
+
+        rows = cursor.fetchall()
+        for row in rows:
+            models.append(row.model_id)
+
+        return models
+
+    def _getMaterialProperties(self, uuid):
+        properties = {}
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT material_property_name, "
+                                    "material_property_value FROM material_property_value "
+                                    "WHERE material_id = ?",
+                       uuid)
+
+        rows = cursor.fetchall()
+        for row in rows:
+            properties[row.property_name] = row.property_value
+
+        return properties
+
+    def getMaterial(self, uuid):
+        self._connect()
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT library_id, folder_id, material_name, "
+                            "material_author, material_license, material_parent_uuid, "
+                            "material_description, material_url, material_reference FROM "
+                            "material WHERE material_id = ?",
+                       uuid)
+
+        row = cursor.fetchone()
+        if row:
+            material = Materials.Material()
+            material.UUID = uuid
+            material.Name = row.material_name
+            material.Author = row.material_author
+            material.License = row.material_license
+            material.ParentUUID = row.material_parent_uuid
+            material.Description = row.material_description
+            material.URL = row.material_url
+            material.Reference = row.material_reference
+
+            material.Library = self._getMaterialLibrary(row.library_id)
+
+            path = self._getPath(row.folder_id) + "/" + row.material_name
+            material.Directory = path
+
+            tags = self._getTags(uuid)
+            for tag in tags:
+                material.addTag(tag)
+
+            for model in self._getMaterialModels(uuid, True):
+                material.addPhysicalModel(model)
+
+            for model in self._getMaterialModels(uuid, False):
+                material.addAppearanceModel(model)
+
+            # The actual properties are set by the model. We just need to load the values
+            properties = self._getMaterialProperties(uuid)
+            for name, value in properties.items():
+                material.setValue(name, value)
+
+            return material
+
+        return None

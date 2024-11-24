@@ -26,10 +26,15 @@ import Materials
 
 from MaterialAPI.MaterialManagerExternal import MaterialManagerExternal
 
+from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
+
 class MaterialsDBManager(MaterialManagerExternal):
 
+    def __init__(self):
+        self._db = DatabaseMySQL()
+
     def libraries(self) -> list:
-        return [("Test Library", None, True), ("Test Library 2", None, True)]
+        return self._db.getLibraries()
 
     def createLibrary(self, name: str, icon: str) -> None:
         pass
