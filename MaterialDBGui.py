@@ -24,6 +24,10 @@ __url__ = "https://www.davesrocketshop.com"
 
 import FreeCADGui
 
-from MaterialDB.CmdTest import CmdTest
+from MaterialDB.UI.Commands.CmdTest import CmdTest
+from MaterialDB.UI.Commands.CmdCreate import CmdCreate
+from MaterialDB.UI.Commands.CmdManageUsers import CmdManageUsers
 
 FreeCADGui.addCommand('MaterialDB_Test', CmdTest())
+FreeCADGui.addCommand('MaterialDB_CreateDatabase', CmdCreate())
+FreeCADGui.addCommand('MaterialDB_ManageUsers', CmdManageUsers())

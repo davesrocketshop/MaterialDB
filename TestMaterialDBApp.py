@@ -24,7 +24,6 @@ __url__ = "https://www.davesrocketshop.com"
 
 import unittest
 
-from MaterialDB.Tests.SQLite.TestSQLite import SQLiteTests
 from MaterialDB.Tests.MySQL.TestMySQL import MySQLTests
 
 def runMaterialDBUnitTests():

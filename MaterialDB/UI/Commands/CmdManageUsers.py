@@ -23,34 +23,19 @@ __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
 import FreeCAD
-import FreeCADGui
 
-class MaterialDBWorkbench ( FreeCADGui.Workbench ):
-    "MaterialDB workbench object"
-    Icon = FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDBWorkbench.svg"
-    MenuText = "MaterialDB"
-    ToolTip = "MaterialDB workbench"
+from DraftTools import translate
 
-    def _loadMaterialModule(self):
-        import Material
-        import MatGui
-        # dummy usage to get flake8 and lgtm quiet
-        False if Material.__name__ else True
-        False if MatGui.__name__ else True
+# from MaterialDB.manager.MaterialDBManager import MaterialsDBManager
 
-    def Initialize(self):
-        FreeCADGui.addLanguagePath(FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/translations")
+class CmdManageUsers:
+    def Activated(self):
+        print("Manage users")
 
-        # load the module
-        import MaterialDBGui
-        from PySide.QtCore import QT_TRANSLATE_NOOP
+    def IsActive(self):
+        return True
 
-        self._loadMaterialModule()
-
-        self.appendToolbar(QT_TRANSLATE_NOOP('MaterialDB', 'MaterialDB'),
-                        ['MaterialDB_Test', 'MaterialDB_CreateDatabase', 'MaterialDB_ManageUsers'])
-        
-    def GetClassName(self):
-        return "Gui::PythonWorkbench"
-
-FreeCADGui.addWorkbench(MaterialDBWorkbench())
+    def GetResources(self):
+        return {'MenuText': translate("MaterialDB", 'Manage users...'),
+                'ToolTip': translate("MaterialDB", 'Manage users'),
+                'Pixmap': FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDBWorkbench.svg"}

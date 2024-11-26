@@ -26,13 +26,13 @@ import FreeCAD
 
 from DraftTools import translate
 
-from MaterialDB.manager.MaterialDBManager import MaterialsDBManager
-import mysql.connector
-import pyodbc
+# from MaterialDB.manager.MaterialDBManager import MaterialsDBManager
+# import mysql.connector
+# import pyodbc
 
 class CmdTest:
     def Activated(self):
-        obj = MaterialsDBManager()
+        # obj = MaterialsDBManager()
         print("Test")
 
     def IsActive(self):

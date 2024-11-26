@@ -25,22 +25,12 @@ __url__ = "https://www.davesrocketshop.com"
 import pyodbc
 
 import Materials
+from Database import Database
 
-class DatabaseMySQL:
+class DatabaseMySQL(Database):
 
     def __init__(self):
-        self._connection = None
-
-    def _connect(self):
-        if self._connection is None:
-            try:
-                self._connection = pyodbc.connect('DSN=material;charset=utf8mb4')
-                self._connection.setdecoding(pyodbc.SQL_CHAR, encoding='utf-8')
-                self._connection.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
-                self._connection.setencoding(encoding='utf-8')
-            except Exception as ex:
-                print("Unable to create connection:", ex)
-                self._connection = None
+        super().__init__()
 
     def _findLibrary(self, name):
         self._connect()
@@ -70,15 +60,6 @@ class DatabaseMySQL:
         except Exception as ex:
             print("Unable to create library:", ex)
 
-    def _lastId(self):
-        """Returns the last insertion id"""
-        cursor = self._connection.cursor()
-        cursor.execute("SELECT @@IDENTITY as id")
-        row = cursor.fetchone()
-        if row:
-            return row.id
-        return 0
-
     def _createPathRecursive(self, libraryIndex, parentIndex, pathIndex, pathList):
         self._connect()
         newId = 0
@@ -95,7 +76,7 @@ class DatabaseMySQL:
             else:
                 cursor.execute("INSERT INTO folder (folder_name, library_id) "
                                             "VALUES (?, ?)", pathList[pathIndex], libraryIndex)
-                newId = self._lastId()
+                newId = self._lastId(cursor)
         else:
             # First see if the folder exists
             cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
@@ -106,7 +87,7 @@ class DatabaseMySQL:
             else:
                 cursor.execute("INSERT INTO folder (folder_name, library_id, parent_id) "
                                             "VALUES (?, ?, ?)", pathList[pathIndex], libraryIndex, parentIndex)
-                newId = self._lastId()
+                newId = self._lastId(cursor)
 
         self._connection.commit()
         index = parentIndex + 1
@@ -186,7 +167,7 @@ class DatabaseMySQL:
                 property.URL,
                 property.Description
                 )
-            propertyId = self._lastId()
+            propertyId = self._lastId(cursor)
             for column in property.Columns:
                 self._createModelPropertyColumn(propertyId, column)
         self._connection.commit()
@@ -237,7 +218,7 @@ class DatabaseMySQL:
         else:
             cursor.execute("INSERT INTO material_tag (material_tag_name) "
                                     "VALUES (?)", tag)
-            tagId = self._lastId()
+            tagId = self._lastId(cursor)
 
         cursor.execute("SELECT material_id, material_tag_id FROM material_tag_mapping "
                                 "WHERE material_id = ? AND material_tag_id = ?", materialUUID, tagId)
