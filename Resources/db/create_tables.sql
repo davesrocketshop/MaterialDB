@@ -116,8 +116,8 @@ CREATE TABLE material_tag (
 
 DROP TABLE IF EXISTS material_tag_mapping;
 CREATE TABLE material_tag_mapping (
-    material_id CHAR(36) NOT NULL INDEX,
-	material_tag_id INTEGER NOT NULL INDEX,
+    material_id CHAR(36) NOT NULL,
+	material_tag_id INTEGER NOT NULL,
 	FOREIGN KEY (material_id)
         REFERENCES material(material_id)
 		ON DELETE CASCADE,
@@ -125,12 +125,10 @@ CREATE TABLE material_tag_mapping (
         REFERENCES material_tag(material_tag_id)
 		ON DELETE CASCADE
 );
--- CREATE INDEX material_tag_mapping_material_id ON material_tag_mapping (material_id);
--- CREATE INDEX material_tag_mapping_material_tag_id ON material_tag_mapping (material_tag_id);
 
 DROP TABLE IF EXISTS material_models;
 CREATE TABLE material_models (
-    material_id CHAR(36) NOT NULL INDEX,
+    material_id CHAR(36) NOT NULL,
     model_id CHAR(36) NOT NULL,
 	FOREIGN KEY (material_id)
         REFERENCES material(material_id)
@@ -139,7 +137,6 @@ CREATE TABLE material_models (
         REFERENCES model(model_id)
 		ON DELETE CASCADE
 );
--- CREATE INDEX material_models_material_id ON material_models (material_id);
 
 DROP TABLE IF EXISTS material_property_value;
 CREATE TABLE material_property_value (

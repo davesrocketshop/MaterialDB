@@ -12,12 +12,26 @@
    xmlns:svg="http://www.w3.org/2000/svg"
    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
    xmlns:cc="http://creativecommons.org/ns#"><defs
-   id="defs13">
+   id="defs13"><rect
+   x="609.52381"
+   y="615.70142"
+   width="143.11454"
+   height="116.34492"
+   id="rect13" />
 	
 	
 </defs>
-<g
-   id="g11">
+
+<metadata
+   id="metadata13"><rdf:RDF><cc:License
+       rdf:about="http://creativecommons.org/publicdomain/zero/1.0/"><cc:permits
+         rdf:resource="http://creativecommons.org/ns#Reproduction" /><cc:permits
+         rdf:resource="http://creativecommons.org/ns#Distribution" /><cc:permits
+         rdf:resource="http://creativecommons.org/ns#DerivativeWorks" /></cc:License><cc:Work
+       rdf:about=""><cc:license
+         rdf:resource="http://creativecommons.org/publicdomain/zero/1.0/" /></cc:Work></rdf:RDF></metadata><g
+   id="g13"><g
+     id="g11">
 		<path
    style="fill:#545e73"
    d="M 49.455,8 V 8 C 48.724,3.538 38.281,0 25.5,0 12.719,0 2.276,3.538 1.545,8 V 8 H 1.5 V 8.5 20 20.5 21 32 32.5 33 45 h 0.045 c 0.731,4.461 11.175,8 23.955,8 12.78,0 23.224,-3.539 23.955,-8 H 49.5 V 33 32.5 32 21 20.5 20 8.5 8 Z"
@@ -74,12 +88,11 @@
    d="M 49.455,8 C 49.482,8.166 49.5,8.332 49.5,8.5 V 8 Z"
    id="path10" />
 		</g>
-	</g>
-<metadata
-   id="metadata13"><rdf:RDF><cc:License
-       rdf:about="http://creativecommons.org/publicdomain/zero/1.0/"><cc:permits
-         rdf:resource="http://creativecommons.org/ns#Reproduction" /><cc:permits
-         rdf:resource="http://creativecommons.org/ns#Distribution" /><cc:permits
-         rdf:resource="http://creativecommons.org/ns#DerivativeWorks" /></cc:License><cc:Work
-       rdf:about=""><cc:license
-         rdf:resource="http://creativecommons.org/publicdomain/zero/1.0/" /></cc:Work></rdf:RDF></metadata></svg>
+	</g><text
+     xml:space="preserve"
+     transform="matrix(0.36829921,0,0,0.38579938,-191.99314,-207.81069)"
+     id="text13"
+     style="font-size:96px;white-space:pre;shape-inside:url(#rect13);display:inline;fill:#ff0000;stroke:#ff0000;stroke-width:2"><tspan
+       x="609.52344"
+       y="703.28488"
+       id="tspan1">*</tspan></text></g></svg>

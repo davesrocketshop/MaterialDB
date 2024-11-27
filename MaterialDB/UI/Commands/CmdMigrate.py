@@ -22,13 +22,19 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import os
+import FreeCAD
+import FreeCADGui
 
-def getUIPath():
-    """
-    Returns the current module path.
-    Determines where this file is running from, so works regardless of whether
-    the module is installed in the app's module directory or the user's app data folder.
-    (The second overrides the first.)
-    """
-    return os.path.normpath(os.path.join(os.path.dirname(__file__), '..', os.path.pardir))
+from DraftTools import translate
+
+class CmdMigrate:
+    def Activated(self):
+        FreeCADGui.runCommand('Materials_MigrateToExternal', 0)
+
+    def IsActive(self):
+        return True
+
+    def GetResources(self):
+        return {'MenuText': translate("MaterialDB", 'Migrate database...'),
+                'ToolTip': translate("MaterialDB", 'Migrate materials to database'),
+                'Pixmap': FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDB_Migrate.svg"}

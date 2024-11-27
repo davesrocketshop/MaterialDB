@@ -24,42 +24,65 @@ __url__ = "https://www.davesrocketshop.com"
 
 import FreeCAD
 import FreeCADGui
-
-from PySide.QtGui import QMessageBox
+import os
+import math
 
 from DraftTools import translate
 
-# from MaterialDB.manager.MaterialDBManager import MaterialsDBManager
+from PySide import  QtCore, QtGui
+
+from MaterialDB.Configuration import getPreferencesLocation
+
 from MaterialDB.Database.DatabaseMySQLCreate import DatabaseMySQLCreate
+from MaterialDB.util.UIPath import getUIPath
 
-from MaterialDB.UI.Tasks.TaskCreateDatabase import TaskPanelCreateDatabase
+class TaskPanelCreateDatabase(QtCore.QObject):
 
-def createDatabase():
-    db = DatabaseMySQLCreate()
-    if db.checkIfExists():
-        # DB exists
-        msgBox = QMessageBox()
-        msgBox.setText(translate('MaterialDB', "The database already exists."))
+    def __init__(self):
+        super().__init__()
 
-        msgBox.setInformativeText(translate('MaterialDB', "Continuing will destroy the database and replace it with an empty one. Continue?"))
-        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-        msgBox.setDefaultButton(QMessageBox.Ok)
-        ret = msgBox.exec()
-        if ret != QMessageBox.Ok:
-            return
+        self.form = FreeCADGui.PySideUic.loadUi(os.path.join(getUIPath(), 'Resources', 'ui', "DlgCreateDatabase.ui"))
 
-    print(translate('MaterialDB', "Create database"))
-    taskd = TaskPanelCreateDatabase()
-    FreeCADGui.Control.showDialog(taskd)
+        self._db = DatabaseMySQLCreate()
 
-class CmdCreate:
-    def Activated(self):
-        createDatabase()
+        # self.form.buttonCreate.clicked.connect(self.onCreate)
 
-    def IsActive(self):
+        self.initialize()
+
+    def initialize(self):
+        prefs = getPreferencesLocation()
+        print(dir(FreeCAD.ParamGet(prefs)))
+        dbName = FreeCAD.ParamGet(prefs).GetString("Database", "material")
+        self.form.editDatabase.setText(dbName)
+
+    def saveSettings(self):
+        prefs = getPreferencesLocation()
+        FreeCAD.ParamGet(prefs).SetString("Database", self.form.editDatabase.text())
+
+    def onCreate(self):
+
+        # Don't try to make things twice
+        # self.form.buttonCreate.setEnabled(False)
+        self.accept()
+
+    def getStandardButtons(self):
+        return QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Close
+
+    def accept(self):
+        print("accept")
+        self.saveSettings()
+
+        self._db.createDatabase()
+        self._db.createTables()
+
+        self.deactivate()
         return True
 
-    def GetResources(self):
-        return {'MenuText': translate("MaterialDB", 'Create database...'),
-                'ToolTip': translate("MaterialDB", 'Create database'),
-                'Pixmap': FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDB_Create.svg"}
+    def reject(self):
+        print("reject")
+        self.deactivate()
+        return True
+
+    def deactivate(self):
+        if FreeCADGui.Control.activeDialog():
+            FreeCADGui.Control.closeDialog()

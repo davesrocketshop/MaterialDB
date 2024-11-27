@@ -27,7 +27,9 @@ import FreeCADGui
 from MaterialDB.UI.Commands.CmdTest import CmdTest
 from MaterialDB.UI.Commands.CmdCreate import CmdCreate
 from MaterialDB.UI.Commands.CmdManageUsers import CmdManageUsers
+from MaterialDB.UI.Commands.CmdMigrate import CmdMigrate
 
 FreeCADGui.addCommand('MaterialDB_Test', CmdTest())
 FreeCADGui.addCommand('MaterialDB_CreateDatabase', CmdCreate())
+FreeCADGui.addCommand('MaterialDB_Migrate', CmdMigrate())
 FreeCADGui.addCommand('MaterialDB_ManageUsers', CmdManageUsers())

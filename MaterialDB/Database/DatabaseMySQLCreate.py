@@ -22,11 +22,10 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import pyodbc
+# import pyodbc
 
-import Materials
-
-from DatabaseMySQL import DatabaseMySQL
+from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
+from MaterialDB.Configuration import getDatabaseName
 
 class DatabaseMySQLCreate(DatabaseMySQL):
 
@@ -131,8 +130,8 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             material_tag_name VARCHAR(255) NOT NULL UNIQUE KEY
                         )""",
             "material_tag_mapping" : """CREATE TABLE material_tag_mapping (
-                        material_id CHAR(36) NOT NULL INDEX,
-                        material_tag_id INTEGER NOT NULL INDEX,
+                        material_id CHAR(36) NOT NULL,
+                        material_tag_id INTEGER NOT NULL,
                         FOREIGN KEY (material_id)
                             REFERENCES material(material_id)
                             ON DELETE CASCADE,
@@ -141,7 +140,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             ON DELETE CASCADE
                     )""",
             "material_models" : """CREATE TABLE material_models (
-                        material_id CHAR(36) NOT NULL INDEX,
+                        material_id CHAR(36) NOT NULL,
                         model_id CHAR(36) NOT NULL,
                         FOREIGN KEY (material_id)
                             REFERENCES material(material_id)
@@ -166,12 +165,12 @@ class DatabaseMySQLCreate(DatabaseMySQL):
             self._connect()
             cursor = self._connection.cursor()
 
-            cursor.execute("USE {}".format(self._database))
+            cursor.execute("USE {}".format(getDatabaseName()))
             cursor.commit()
             return True
         except Exception as err:
             print(err)
-            print("Database {} does not exist.".format(self._database))
+            print("Database {} does not exist.".format(getDatabaseName()))
         return False
 
     def dropTables(self):
@@ -199,15 +198,21 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                 cursor.execute(self._tables[table])
             cursor.commit()
         except Exception as err:
-            print(err)
+            print("Failed creating tables: {}".format(err))
 
     def createDatabase(self):
         try:
+            dbName = getDatabaseName()
             self._connect()
             cursor = self._connection.cursor()
 
             cursor.execute(
-                "CREATE DATABASE {} DEFAULT CHARACTER SET 'utf8'".format(self._database))
+                "DROP DATABASE IF EXISTS {}".format(dbName))
+            cursor.commit()
+
+            cursor.execute(
+                "CREATE DATABASE {} DEFAULT CHARACTER SET 'utf8mb4'".format(dbName))
+            cursor.execute("USE {}".format(dbName))
             cursor.commit()
         except Exception as err:
             print("Failed creating database: {}".format(err))

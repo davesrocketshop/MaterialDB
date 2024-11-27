@@ -48,8 +48,8 @@ class MaterialDBWorkbench ( FreeCADGui.Workbench ):
         self._loadMaterialModule()
 
         self.appendToolbar(QT_TRANSLATE_NOOP('MaterialDB', 'MaterialDB'),
-                        ['MaterialDB_Test', 'MaterialDB_CreateDatabase', 'MaterialDB_ManageUsers'])
-        
+                        ['MaterialDB_CreateDatabase', 'MaterialDB_Migrate'])
+
     def GetClassName(self):
         return "Gui::PythonWorkbench"
 

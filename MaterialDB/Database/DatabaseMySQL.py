@@ -25,7 +25,7 @@ __url__ = "https://www.davesrocketshop.com"
 import pyodbc
 
 import Materials
-from Database import Database
+from MaterialDB.Database.Database import Database
 
 class DatabaseMySQL(Database):
 

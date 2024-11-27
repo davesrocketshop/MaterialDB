@@ -29,7 +29,7 @@ class Database:
     def __init__(self):
         self._connection = None
 
-        self._database = "material" # This needs to be generalized
+        # self._database = "material" # This needs to be generalized
 
     def _connect(self):
         if self._connection is None:
@@ -52,15 +52,15 @@ class Database:
         if row:
             return row.id
         return 0
-    
+
     def checkCreatePermissions(self):
         return False
-    
+
     def checkManageUsersPermissions(self):
         return False
-    
+
     def checkManageLibrariesPermissions(self):
         return False
-    
+
     def checkCreateLibrariesPermissions(self):
         return False
