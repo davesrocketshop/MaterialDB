@@ -38,3 +38,37 @@ class DatabaseConnectionError(Exception):
 
     def __init__(self, message="Unable to connect"):
         self._message = message
+
+#---
+#
+# Library errors
+#
+#---
+
+class DatabaseLibraryCreationError(Exception):
+
+    def __init__(self, error):
+        self._error = error
+
+
+#---
+#
+# Model errors
+#
+#---
+
+class DatabaseModelCreationError(Exception):
+
+    def __init__(self, error):
+        self._error = error
+
+#---
+#
+# Material errors
+#
+#---
+
+class DatabaseMaterialCreationError(Exception):
+
+    def __init__(self, error):
+        self._error = error

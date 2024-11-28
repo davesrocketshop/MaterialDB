@@ -26,6 +26,8 @@ import pyodbc
 
 import Materials
 from MaterialDB.Database.Database import Database
+from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
+    DatabaseModelCreationError, DatabaseMaterialCreationError
 
 class DatabaseMySQL(Database):
 
@@ -57,6 +59,7 @@ class DatabaseMySQL(Database):
                 self._connection.commit()
         except Exception as ex:
             print("Unable to create library:", ex)
+            raise DatabaseLibraryCreationError(ex)
 
     def _createPathRecursive(self, libraryIndex, parentIndex, pathIndex, pathList):
         newId = 0
@@ -132,7 +135,7 @@ class DatabaseMySQL(Database):
                 propertyId,
                 property.Name,
                 property.DisplayName,
-                property.PropertyType,
+                property.Type,
                 property.Units,
                 property.URL,
                 property.Description
@@ -156,7 +159,7 @@ class DatabaseMySQL(Database):
                 modelUUID,
                 property.Name,
                 property.DisplayName,
-                property.PropertyType,
+                property.Type,
                 property.Units,
                 property.URL,
                 property.Description
@@ -188,7 +191,7 @@ class DatabaseMySQL(Database):
             for inherit in model.Inherited:
                 self._createInheritance(model.UUID, inherit)
 
-            for property in model.Properties:
+            for property in model.Properties.values():
                 self._createModelProperty(model.UUID, property)
         self._connection.commit()
 
@@ -199,6 +202,7 @@ class DatabaseMySQL(Database):
                 self._createModel(libraryIndex, path, model)
         except Exception as ex:
             print("Unable to create model:", ex)
+            raise DatabaseModelCreationError(ex)
 
     def _createTag(self, materialUUID, tag):
         tagId = 0
@@ -231,12 +235,13 @@ class DatabaseMySQL(Database):
         self._connection.commit()
 
     def _createStringValue(self, materialUUID, name, value):
-        cursor = self._cursor()
-        cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, "
-                      "material_property_value) "
-                      "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE material_property_value = ?",
-                       materialUUID, name, value, value)
-        self._connection.commit()
+        if value is not None:
+            cursor = self._cursor()
+            cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, "
+                        "material_property_value) "
+                        "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE material_property_value = ?",
+                        materialUUID, name, value, value)
+            self._connection.commit()
 
     def _createMaterialProperty(self, materialUUID, property):
         if property.Type == "List" or \
@@ -248,11 +253,9 @@ class DatabaseMySQL(Database):
            property.Type == "ImageList" or \
            property.Type == "SVG":
             pass
+        elif property.Type == "Quantity":
+            self._createStringValue(materialUUID, property.Name, property.Value.UserString)
         else:
-            self._createStringValue(materialUUID, property.Name, property.Value)
-
-    # def _createMaterialProperty(self, materialUUID, name, value):
-    #     self._createStringValue(materialUUID, name, value)
 
     def _createMaterial(self, libraryIndex, path, material):
         pathIndex = self._createPath(libraryIndex, path)
@@ -292,14 +295,8 @@ class DatabaseMySQL(Database):
             for model in material.AppearanceModels:
                 self._createMaterialModel(material.UUID, model)
 
-            for property in material.PropertyObjects:
+            for property in material.PropertyObjects.values():
                 self._createMaterialProperty(material.UUID, property)
-
-            # for name, value in material.PhysicalProperties.items():
-            #     self._createMaterialProperty(material.UUID, name, value)
-
-            # for name, value in material.AppearanceProperties.items():
-            #     self._createMaterialProperty(material.UUID, name, value)
 
         self._connection.commit()
 
@@ -310,6 +307,7 @@ class DatabaseMySQL(Database):
                 self._createMaterial(libraryIndex, path, material)
         except Exception as ex:
             print("Unable to create material:", ex)
+            raise DatabaseMaterialCreationError(ex)
 
     def getLibraries(self):
         libraries = []
