@@ -30,10 +30,12 @@ import math
 from DraftTools import translate
 
 from PySide import  QtCore, QtGui
+from PySide.QtGui import QMessageBox
 
 from MaterialDB.Configuration import getPreferencesLocation
 
 from MaterialDB.Database.DatabaseMySQLCreate import DatabaseMySQLCreate
+from MaterialDB.Database.Exceptions import DatabaseCreationError, DatabaseTableCreationError
 from MaterialDB.util.UIPath import getUIPath
 
 class TaskPanelCreateDatabase(QtCore.QObject):
@@ -44,14 +46,10 @@ class TaskPanelCreateDatabase(QtCore.QObject):
         self.form = FreeCADGui.PySideUic.loadUi(os.path.join(getUIPath(), 'Resources', 'ui', "DlgCreateDatabase.ui"))
 
         self._db = DatabaseMySQLCreate()
-
-        # self.form.buttonCreate.clicked.connect(self.onCreate)
-
         self.initialize()
 
     def initialize(self):
         prefs = getPreferencesLocation()
-        print(dir(FreeCAD.ParamGet(prefs)))
         dbName = FreeCAD.ParamGet(prefs).GetString("Database", "material")
         self.form.editDatabase.setText(dbName)
 
@@ -59,27 +57,49 @@ class TaskPanelCreateDatabase(QtCore.QObject):
         prefs = getPreferencesLocation()
         FreeCAD.ParamGet(prefs).SetString("Database", self.form.editDatabase.text())
 
-    def onCreate(self):
-
-        # Don't try to make things twice
-        # self.form.buttonCreate.setEnabled(False)
-        self.accept()
-
     def getStandardButtons(self):
         return QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Close
 
+    def modifyStandardButtons(self, box):
+        createButton = box.button(QtGui.QDialogButtonBox.Ok)
+        createButton.setText(translate("MaterialDB", "Create"))
+
     def accept(self):
-        print("accept")
         self.saveSettings()
 
-        self._db.createDatabase()
-        self._db.createTables()
+        try:
+            self.updateStatus(translate('MaterialDB', "Creating database..."))
+            self._db.createDatabase()
+            self.updateStatus(translate('MaterialDB', "Creating tables..."))
+            self._db.createTables()
+            self.updateStatus(translate('MaterialDB', "done"))
+        except DatabaseCreationError as dbErr:
+            self.reportError(translate('MaterialDB', "Unable to create database."),
+                             dbErr._error)
+        except DatabaseTableCreationError as tableErr:
+            self.reportError(translate('MaterialDB', "Unable to create database tables."),
+                             tableErr._error)
 
-        self.deactivate()
-        return True
+        # self.deactivate()
+        return False
+
+    def reportError(self, title, error):
+        msgBox = QMessageBox()
+        msgBox.setText(title)
+
+        msgBox.setInformativeText(str(error))
+        msgBox.setStandardButtons(QMessageBox.Ok)
+        msgBox.setDefaultButton(QMessageBox.Ok)
+        msgBox.exec()
+
+    def updateStatus(self, status):
+        print(status)
+        self.form.textStatus.append(status)
+
+        # This is required to update in real time
+        QtCore.QCoreApplication.processEvents()
 
     def reject(self):
-        print("reject")
         self.deactivate()
         return True
 

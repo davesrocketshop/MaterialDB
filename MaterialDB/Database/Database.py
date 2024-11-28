@@ -24,6 +24,12 @@ __url__ = "https://www.davesrocketshop.com"
 
 import pyodbc
 
+import FreeCAD
+
+from DraftTools import translate
+
+from MaterialDB.Database.Exceptions import DatabaseConnectionError
+
 class Database:
 
     def __init__(self):
@@ -34,6 +40,19 @@ class Database:
     def _connect(self):
         if self._connection is None:
             self._connectODBC()
+
+    def _cursor(self):
+        for retry in range(3):
+            try:
+                self._connect()
+                cursor = self._connection.cursor()
+                return cursor
+            except pyodbc.ProgrammingError:
+                # Force a reconnection
+                FreeCAD.Console.PrintError(translate('MaterialDB', "\nUnable to connect to database. Reconnecting...\n"))
+                self._connection = None
+
+        raise DatabaseConnectionError()
 
     def _connectODBC(self):
         try:

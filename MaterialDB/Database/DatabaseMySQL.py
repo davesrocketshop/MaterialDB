@@ -33,8 +33,7 @@ class DatabaseMySQL(Database):
         super().__init__()
 
     def _findLibrary(self, name):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
 
         cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
         row = cursor.fetchone()
@@ -44,8 +43,7 @@ class DatabaseMySQL(Database):
 
     def createLibrary(self, name, icon, readOnly):
         try:
-            self._connect()
-            cursor = self._connection.cursor()
+            cursor = self._cursor()
 
             cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
             row = cursor.fetchone()
@@ -61,9 +59,8 @@ class DatabaseMySQL(Database):
             print("Unable to create library:", ex)
 
     def _createPathRecursive(self, libraryIndex, parentIndex, pathIndex, pathList):
-        self._connect()
         newId = 0
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
 
         if parentIndex == 0:
             # No parent. This is a root folder
@@ -109,8 +106,7 @@ class DatabaseMySQL(Database):
         cursor.execute("SET FOREIGN_KEY_CHECKS=1")
 
     def _createInheritance(self, modelUUID, inheritUUID):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT model_inheritance_id FROM model_inheritance WHERE model_id "
                                 "= ? AND inherits_id = ?", modelUUID, inheritUUID)
         row = cursor.fetchone()
@@ -123,8 +119,7 @@ class DatabaseMySQL(Database):
         self._connection.commit()
 
     def _createModelPropertyColumn(self, propertyId, property):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT model_property_column_id FROM model_property_column WHERE model_property_id "
             "= ? AND model_property_name = ?", propertyId, property.Name)
         row = cursor.fetchone()
@@ -148,8 +143,7 @@ class DatabaseMySQL(Database):
         if property.inherited:
             return
 
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT model_property_id FROM model_property WHERE model_id "
                                 "= ? AND model_property_name = ?", modelUUID, property.Name)
         row = cursor.fetchone()
@@ -173,8 +167,7 @@ class DatabaseMySQL(Database):
         self._connection.commit()
 
     def _createModel(self, libraryIndex, path, model):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         pathIndex = self._createPath(libraryIndex, path)
         cursor.execute("SELECT model_id FROM model WHERE model_id = ?", model.UUID)
         row = cursor.fetchone()
@@ -209,8 +202,7 @@ class DatabaseMySQL(Database):
 
     def _createTag(self, materialUUID, tag):
         tagId = 0
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT material_tag_id FROM material_tag WHERE material_tag_name = ?", tag)
         row = cursor.fetchone()
         if row:
@@ -229,8 +221,7 @@ class DatabaseMySQL(Database):
         self._connection.commit()
 
     def _createMaterialModel(self, materialUUID, modelUUID):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT material_id FROM material_models WHERE material_id = ? AND model_id = ?",
                        materialUUID, modelUUID)
         row = cursor.fetchone()
@@ -240,8 +231,7 @@ class DatabaseMySQL(Database):
         self._connection.commit()
 
     def _createStringValue(self, materialUUID, name, value):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, "
                       "material_property_value) "
                       "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE material_property_value = ?",
@@ -265,11 +255,9 @@ class DatabaseMySQL(Database):
         self._createStringValue(materialUUID, name, value)
 
     def _createMaterial(self, libraryIndex, path, material):
-        self._connect()
-
         pathIndex = self._createPath(libraryIndex, path)
 
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT material_id FROM material WHERE material_id = ?",
                        material.UUID)
         row = cursor.fetchone()
@@ -322,8 +310,7 @@ class DatabaseMySQL(Database):
 
     def getLibraries(self):
         libraries = []
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
                                     "library")
         rows = cursor.fetchall()
@@ -334,8 +321,7 @@ class DatabaseMySQL(Database):
 
     def getModelLibraries(self):
         libraries = []
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only"
                        " FROM library l, model m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
@@ -346,8 +332,7 @@ class DatabaseMySQL(Database):
 
     def getMaterialLibraries(self):
         libraries = []
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only"
                        " FROM library l, material m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
@@ -357,8 +342,7 @@ class DatabaseMySQL(Database):
         return libraries
 
     def _getLibrary(self, libraryId):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
                                     "library WHERE library_id = ?",
                        libraryId)
@@ -368,8 +352,7 @@ class DatabaseMySQL(Database):
         return None
 
     def _getMaterialLibrary(self, libraryId):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         # Need to add logic to ensure there's a material in there?
         cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
                                     "library WHERE library_id = ?",
@@ -382,8 +365,7 @@ class DatabaseMySQL(Database):
 
     def _getPath(self, folderId):
         path = ""
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT folder_name, parent_id FROM folder WHERE folder_id = ?",
                        folderId)
         row = cursor.fetchone()
@@ -396,8 +378,7 @@ class DatabaseMySQL(Database):
 
     def _getInherits(self, uuid):
         inherits = []
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT inherits_id FROM model_inheritance "
                                     "WHERE model_id = ?",
                        uuid)
@@ -409,8 +390,7 @@ class DatabaseMySQL(Database):
 
     def _getModelColumns(self, uuid, propertyName):
         columns = []
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT model_property_id FROM model_property "
                                     "WHERE model_id = ? AND model_property_name = ?",
                        uuid, propertyName)
@@ -441,8 +421,7 @@ class DatabaseMySQL(Database):
 
     def _getModelProperties(self, uuid):
         properties = []
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT model_property_name, "
                                     "model_property_display_name, model_property_type, "
                                     "model_property_units, model_property_url, "
@@ -471,8 +450,7 @@ class DatabaseMySQL(Database):
         return properties
 
     def getModel(self, uuid):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT library_id, folder_id, model_type, "
             "model_name, model_url, model_description, model_doi FROM model WHERE model_id = ?",
                        uuid)
@@ -506,8 +484,7 @@ class DatabaseMySQL(Database):
 
     def _getTags(self, uuid):
         tags = []
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT t.material_tag_name FROM material_tag t, material_tag_mapping m "
                           "WHERE m.material_id = ? AND m.material_tag_id = t.material_tag_id",
                        uuid)
@@ -520,8 +497,7 @@ class DatabaseMySQL(Database):
 
     def _getMaterialModels(self, uuid, isPhysical):
         models = []
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT m1.model_id FROM material_models m1, model m2 "
             "WHERE m1.material_id = ? AND m1.model_id = m2.model_id AND m2.model_type = ?",
                        uuid,
@@ -535,8 +511,7 @@ class DatabaseMySQL(Database):
 
     def _getMaterialProperties(self, uuid):
         properties = {}
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT material_property_name, "
                                     "material_property_value FROM material_property_value "
                                     "WHERE material_id = ?",
@@ -549,8 +524,7 @@ class DatabaseMySQL(Database):
         return properties
 
     def getMaterial(self, uuid):
-        self._connect()
-        cursor = self._connection.cursor()
+        cursor = self._cursor()
         cursor.execute("SELECT library_id, folder_id, material_name, "
                             "material_author, material_license, material_parent_uuid, "
                             "material_description, material_url, material_reference FROM "

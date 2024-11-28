@@ -36,7 +36,7 @@
     </layout>
    </item>
    <item>
-    <widget class="QTextEdit" name="testStatus">
+    <widget class="QTextEdit" name="textStatus">
      <property name="lineWrapMode">
       <enum>QTextEdit::NoWrap</enum>
      </property>

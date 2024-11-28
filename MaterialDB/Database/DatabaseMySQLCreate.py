@@ -26,6 +26,7 @@ __url__ = "https://www.davesrocketshop.com"
 
 from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
 from MaterialDB.Configuration import getDatabaseName
+from MaterialDB.Database.Exceptions import DatabaseCreationError, DatabaseTableCreationError
 
 class DatabaseMySQLCreate(DatabaseMySQL):
 
@@ -162,8 +163,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
 
     def checkIfExists(self):
         try:
-            self._connect()
-            cursor = self._connection.cursor()
+            cursor = self._cursor()
 
             cursor.execute("USE {}".format(getDatabaseName()))
             cursor.commit()
@@ -175,8 +175,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
 
     def dropTables(self):
         try:
-            self._connect()
-            cursor = self._connection.cursor()
+            cursor = self._cursor()
 
             # Foreign key checks are turned off to avoid requiring a specific sequence
             cursor.execute("SET FOREIGN_KEY_CHECKS=0")
@@ -191,20 +190,18 @@ class DatabaseMySQLCreate(DatabaseMySQL):
 
     def createTables(self):
         try:
-            self._connect()
-            cursor = self._connection.cursor()
+            cursor = self._cursor()
 
             for table in self._tables:
                 cursor.execute(self._tables[table])
             cursor.commit()
         except Exception as err:
-            print("Failed creating tables: {}".format(err))
+            raise DatabaseTableCreationError(err)
 
     def createDatabase(self):
         try:
             dbName = getDatabaseName()
-            self._connect()
-            cursor = self._connection.cursor()
+            cursor = self._cursor()
 
             cursor.execute(
                 "DROP DATABASE IF EXISTS {}".format(dbName))
@@ -215,5 +212,5 @@ class DatabaseMySQLCreate(DatabaseMySQL):
             cursor.execute("USE {}".format(dbName))
             cursor.commit()
         except Exception as err:
-            print("Failed creating database: {}".format(err))
+            raise DatabaseCreationError(err)
 
