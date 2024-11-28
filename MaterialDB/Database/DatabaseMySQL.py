@@ -22,12 +22,13 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import pyodbc
+from functools import lru_cache
 
 import Materials
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
-    DatabaseModelCreationError, DatabaseMaterialCreationError
+    DatabaseModelCreationError, DatabaseMaterialCreationError, \
+    DatabaseModelExistsError, DatabaseMaterialExistsError
 
 class DatabaseMySQL(Database):
 
@@ -174,7 +175,9 @@ class DatabaseMySQL(Database):
         pathIndex = self._createPath(libraryIndex, path)
         cursor.execute("SELECT model_id FROM model WHERE model_id = ?", model.UUID)
         row = cursor.fetchone()
-        if not row:
+        if row:
+            raise DatabaseModelExistsError()
+        else:
             cursor.execute("INSERT INTO model (model_id, library_id, folder_id, "
                         "model_name, model_type, model_url, model_description, model_doi) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -196,11 +199,16 @@ class DatabaseMySQL(Database):
         self._connection.commit()
 
     def createModel(self, libraryName, path, model):
+        self.getModel.cache_clear()
         try:
             libraryIndex = self._findLibrary(libraryName)
             if libraryIndex > 0:
                 self._createModel(libraryIndex, path, model)
+        except DatabaseModelExistsError as exists:
+            # Rethrow
+            raise exists
         except Exception as ex:
+            # print("Exception '{}'".format(type(ex).__name__))
             print("Unable to create model:", ex)
             raise DatabaseModelCreationError(ex)
 
@@ -256,6 +264,7 @@ class DatabaseMySQL(Database):
         elif property.Type == "Quantity":
             self._createStringValue(materialUUID, property.Name, property.Value.UserString)
         else:
+            self._createStringValue(materialUUID, property.Name, property.Value)
 
     def _createMaterial(self, libraryIndex, path, material):
         pathIndex = self._createPath(libraryIndex, path)
@@ -264,7 +273,9 @@ class DatabaseMySQL(Database):
         cursor.execute("SELECT material_id FROM material WHERE material_id = ?",
                        material.UUID)
         row = cursor.fetchone()
-        if not row:
+        if row:
+            raise DatabaseMaterialExistsError()
+        else:
             # Mass updates may insert models out of sequence creating a foreign key
             # violation
             self._foreignKeysIgnore(cursor)
@@ -305,6 +316,9 @@ class DatabaseMySQL(Database):
             libraryIndex = self._findLibrary(libraryName)
             if libraryIndex > 0:
                 self._createMaterial(libraryIndex, path, material)
+        except DatabaseMaterialExistsError as exists:
+            # Rethrow
+            raise exists
         except Exception as ex:
             print("Unable to create material:", ex)
             raise DatabaseMaterialCreationError(ex)
@@ -450,6 +464,7 @@ class DatabaseMySQL(Database):
 
         return properties
 
+    @lru_cache(maxsize=100)
     def getModel(self, uuid):
         cursor = self._cursor()
         cursor.execute("SELECT library_id, folder_id, model_type, "

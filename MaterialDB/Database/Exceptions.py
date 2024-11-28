@@ -62,6 +62,17 @@ class DatabaseModelCreationError(Exception):
     def __init__(self, error):
         self._error = error
 
+class DatabaseModelExistsError(Exception):
+
+    def __init__(self, error=None):
+        self._error = error
+        self.msg = "Model already exists"
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
+
 #---
 #
 # Material errors
@@ -72,3 +83,14 @@ class DatabaseMaterialCreationError(Exception):
 
     def __init__(self, error):
         self._error = error
+
+class DatabaseMaterialExistsError(Exception):
+
+    def __init__(self, error=None):
+        self._error = error
+        self.msg = "Material already exists"
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)

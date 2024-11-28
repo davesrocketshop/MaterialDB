@@ -27,6 +27,9 @@ import Materials
 from MaterialAPI.MaterialManagerExternal import MaterialManagerExternal
 
 from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
+from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
+    DatabaseModelCreationError, DatabaseMaterialCreationError, \
+    DatabaseModelExistsError, DatabaseMaterialExistsError
 
 class MaterialsDBManager(MaterialManagerExternal):
 
@@ -77,6 +80,18 @@ class MaterialsDBManager(MaterialManagerExternal):
         print("addModel('{}', '{}', '{}')".format(library, path, model.Name))
         self._db.createModel(library, path, model)
 
+    def migrateModel(self, library: str, path: str, model: Materials.Model) -> None:
+        print("migrateModel('{}', '{}', '{}')".format(library, path, model.Name))
+        try:
+            self._db.createModel(library, path, model)
+        except DatabaseModelExistsError:
+            # If it exists we just ignore
+            # print("Ignore DatabaseModelExistsError error")
+            pass
+
+    def updateModel(self, library: str, path: str, model: Materials.Model) -> None:
+        print("updateModel('{}', '{}', '{}')".format(library, path, model.Name))
+
     def setModelPath(self, library: str, path: str, model: Materials.Model) -> None:
         print("setModelPath('{}', '{}', '{}')".format(library, path, model.Name))
 
@@ -99,6 +114,18 @@ class MaterialsDBManager(MaterialManagerExternal):
     def addMaterial(self, library: str, path: str, material: Materials.Material) -> None:
         print("addMaterial('{}', '{}', '{}')".format(library, path, material.Name))
         self._db.createMaterial(library, path, material)
+
+    def migrateMaterial(self, library: str, path: str, material: Materials.Material) -> None:
+        print("migrateMaterial('{}', '{}', '{}')".format(library, path, material.Name))
+        try:
+            self._db.createMaterial(library, path, material)
+        except DatabaseMaterialExistsError:
+            # If it exists we just ignore
+            # print("Ignore DatabaseModelExistsError error")
+            pass
+
+    def updateMaterial(self, library: str, path: str, material: Materials.Material) -> None:
+        print("updateMaterial('{}', '{}', '{}')".format(library, path, material.Name))
 
     def setMaterialPath(self, library: str, path: str, material: Materials.Material) -> None:
         print("setMaterialPath('{}', '{}', '{}')".format(library, path, material.Name))
