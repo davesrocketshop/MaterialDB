@@ -164,7 +164,7 @@ class DatabaseMySQL:
         self._connection.commit()
 
     def _createModelProperty(self, modelUUID, property):
-        if property.inherited:
+        if property.Inherited:
             return
 
         self._connect()
@@ -267,21 +267,21 @@ class DatabaseMySQL:
                        materialUUID, name, value, value)
         self._connection.commit()
 
-    # def _createMaterialProperty(self, materialUUID, property):
-    #     if property.Type == "List" or \
-    #        property.Type == "Array2D" or \
-    #        property.Type == "Array3D" or \
-    #        property.Type == "Image" or \
-    #        property.Type == "File" or \
-    #        property.Type == "FileList" or \
-    #        property.Type == "ImageList" or \
-    #        property.Type == "SVG":
-    #         pass
-    #     else:
-    #         self._createStringValue(materialUUID, property.Name, property.Value)
+    def _createMaterialProperty(self, materialUUID, property):
+        if property.Type == "List" or \
+           property.Type == "Array2D" or \
+           property.Type == "Array3D" or \
+           property.Type == "Image" or \
+           property.Type == "File" or \
+           property.Type == "FileList" or \
+           property.Type == "ImageList" or \
+           property.Type == "SVG":
+            pass
+        else:
+            self._createStringValue(materialUUID, property.Name, property.Value)
 
-    def _createMaterialProperty(self, materialUUID, name, value):
-        self._createStringValue(materialUUID, name, value)
+    # def _createMaterialProperty(self, materialUUID, name, value):
+    #     self._createStringValue(materialUUID, name, value)
 
     def _createMaterial(self, libraryIndex, path, material):
         self._connect()
@@ -323,11 +323,14 @@ class DatabaseMySQL:
             for model in material.AppearanceModels:
                 self._createMaterialModel(material.UUID, model)
 
-            for name, value in material.PhysicalProperties.items():
-                self._createMaterialProperty(material.UUID, name, value)
+            for property in material.PropertyObjects:
+                self._createMaterialProperty(material.UUID, property)
 
-            for name, value in material.AppearanceProperties.items():
-                self._createMaterialProperty(material.UUID, name, value)
+            # for name, value in material.PhysicalProperties.items():
+            #     self._createMaterialProperty(material.UUID, name, value)
+
+            # for name, value in material.AppearanceProperties.items():
+            #     self._createMaterialProperty(material.UUID, name, value)
 
         self._connection.commit()
 
