@@ -22,13 +22,23 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import os
+import FreeCAD
 
-def getUIPath():
-    """
-    Returns the current module path.
-    Determines where this file is running from, so works regardless of whether
-    the module is installed in the app's module directory or the user's app data folder.
-    (The second overrides the first.)
-    """
-    return os.path.normpath(os.path.join(os.path.dirname(__file__), '..', os.path.pardir))
+from DraftTools import translate
+
+# from MaterialDB.manager.MaterialDBManager import MaterialsDBManager
+# import mysql.connector
+# import pyodbc
+
+class CmdTest:
+    def Activated(self):
+        # obj = MaterialsDBManager()
+        print("Test")
+
+    def IsActive(self):
+        return True
+
+    def GetResources(self):
+        return {'MenuText': translate("Rocket", 'Test'),
+                'ToolTip': translate("Rocket", 'Test'),
+                'Pixmap': FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDBWorkbench.svg"}

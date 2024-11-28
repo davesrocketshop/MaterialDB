@@ -8,16 +8,55 @@
    id="Capa_1"
    viewBox="0 0 56 56"
    xml:space="preserve"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg"
    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
    xmlns:cc="http://creativecommons.org/ns#"><defs
-   id="defs13">
+   id="defs13"><linearGradient
+   id="linearGradient13"><stop
+     style="stop-color:#ffff00;stop-opacity:1;"
+     offset="0"
+     id="stop13" /><stop
+     style="stop-color:#7c7c00;stop-opacity:1;"
+     offset="1"
+     id="stop14" /></linearGradient><rect
+   x="609.52381"
+   y="615.70142"
+   width="143.11454"
+   height="116.34492"
+   id="rect13" />
 	
 	
-</defs>
-<g
-   id="g11">
+<linearGradient
+   id="linearGradient3895"><stop
+     style="stop-color:#729fcf;stop-opacity:1;"
+     offset="0"
+     id="stop3897" /><stop
+     style="stop-color:#204a87;stop-opacity:1;"
+     offset="1"
+     id="stop3899" /></linearGradient><linearGradient
+   xlink:href="#linearGradient13"
+   id="linearGradient14"
+   x1="1.3867512"
+   y1="31.815469"
+   x2="31.615475"
+   y2="31.815469"
+   gradientUnits="userSpaceOnUse"
+   gradientTransform="matrix(1.3487298,0,0,1.0837715,-0.85352921,-4.0706341)" /></defs>
+
+<metadata
+   id="metadata13"><rdf:RDF><cc:License
+       rdf:about="http://creativecommons.org/publicdomain/zero/1.0/"><cc:permits
+         rdf:resource="http://creativecommons.org/ns#Reproduction" /><cc:permits
+         rdf:resource="http://creativecommons.org/ns#Distribution" /><cc:permits
+         rdf:resource="http://creativecommons.org/ns#DerivativeWorks" /></cc:License><cc:Work
+       rdf:about=""><cc:license
+         rdf:resource="http://creativecommons.org/publicdomain/zero/1.0/" /></cc:Work></rdf:RDF></metadata><g
+   id="g1"
+   transform="translate(2.3783784,0.72072072)"><g
+     id="g11"
+     transform="translate(-6.1261265e-8,0.86486486)">
 		<path
    style="fill:#545e73"
    d="M 49.455,8 V 8 C 48.724,3.538 38.281,0 25.5,0 12.719,0 2.276,3.538 1.545,8 V 8 H 1.5 V 8.5 20 20.5 21 32 32.5 33 45 h 0.045 c 0.731,4.461 11.175,8 23.955,8 12.78,0 23.224,-3.539 23.955,-8 H 49.5 V 33 32.5 32 21 20.5 20 8.5 8 Z"
@@ -74,12 +113,7 @@
    d="M 49.455,8 C 49.482,8.166 49.5,8.332 49.5,8.5 V 8 Z"
    id="path10" />
 		</g>
-	</g>
-<metadata
-   id="metadata13"><rdf:RDF><cc:License
-       rdf:about="http://creativecommons.org/publicdomain/zero/1.0/"><cc:permits
-         rdf:resource="http://creativecommons.org/ns#Reproduction" /><cc:permits
-         rdf:resource="http://creativecommons.org/ns#Distribution" /><cc:permits
-         rdf:resource="http://creativecommons.org/ns#DerivativeWorks" /></cc:License><cc:Work
-       rdf:about=""><cc:license
-         rdf:resource="http://creativecommons.org/publicdomain/zero/1.0/" /></cc:Work></rdf:RDF></metadata></svg>
+	</g><path
+     d="m 35.729549,32.581295 a 6.3782614,6.5045667 0 1 0 0,-13.009133 6.3782614,6.5045667 0 0 0 0,13.009133 z m 0,2.857803 c -8.48031,0 -13.916666,4.772467 -13.916666,7.096126 v 4.338958 h 27.833333 v -4.338958 c 0,-2.810066 -5.146636,-7.096126 -13.916667,-7.096126 z"
+     id="path1-6"
+     style="fill:#fffc00;fill-opacity:1;stroke-width:1.27762" /></g></svg>

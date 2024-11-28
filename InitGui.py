@@ -32,10 +32,10 @@ class MaterialDBWorkbench ( FreeCADGui.Workbench ):
     ToolTip = "MaterialDB workbench"
 
     def _loadMaterialModule(self):
-        # import Material
+        import Material
         import MatGui
         # dummy usage to get flake8 and lgtm quiet
-        # False if Material.__name__ else True
+        False if Material.__name__ else True
         False if MatGui.__name__ else True
 
     def Initialize(self):
@@ -48,12 +48,7 @@ class MaterialDBWorkbench ( FreeCADGui.Workbench ):
         self._loadMaterialModule()
 
         self.appendToolbar(QT_TRANSLATE_NOOP('MaterialDB', 'MaterialDB'),
-                        ['MaterialDB_Test'])
-        # self.appendToolbar(QT_TRANSLATE_NOOP('MaterialDB', 'MaterialDB'),
-        #                 ['MaterialDB_MaterialEditor', 'MaterialDB_NewMaterialEditor', "Materials_Edit",
-        #                  'Separator', 'Materials_ModelSelect',
-        #                  'Separator', 'MaterialDB_ValuesEditor', "Materials_ValueEdit",
-        #                  'Separator', "Materials_MaterialSave"])
+                        ['MaterialDB_CreateDatabase', 'MaterialDB_Migrate'])
 
     def GetClassName(self):
         return "Gui::PythonWorkbench"

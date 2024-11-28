@@ -1,5 +1,5 @@
 # ***************************************************************************
-# *   Copyright (c) 2024 David Carter <dcarter@davidcarter.ca>              *
+# *   Copyright (c) 2021-2024 David Carter <dcarter@davidcarter.ca>         *
 # *                                                                         *
 # *   This program is free software; you can redistribute it and/or modify  *
 # *   it under the terms of the GNU Lesser General Public License (LGPL)    *
@@ -18,27 +18,23 @@
 # *   USA                                                                   *
 # *                                                                         *
 # ***************************************************************************
+"""Class for part import exceptions"""
 
+__title__ = "FreeCAD Rocket Import Exceptions"
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import FreeCAD
+class DatabaseCreationError(Exception):
 
-from DraftTools import translate
+    def __init__(self, error):
+        self._error = error
 
-from MaterialDB.manager.MaterialDBManager import MaterialsDBManager
-import mysql.connector
-import pyodbc
+class DatabaseTableCreationError(Exception):
 
-class CmdTest:
-    def Activated(self):
-        obj = MaterialsDBManager()
-        print("Test")
+    def __init__(self, error):
+        self._error = error
 
-    def IsActive(self):
-        return True
+class DatabaseConnectionError(Exception):
 
-    def GetResources(self):
-        return {'MenuText': translate("Rocket", 'Test'),
-                'ToolTip': translate("Rocket", 'Test'),
-                'Pixmap': FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDBWorkbench.svg"}
+    def __init__(self, message="Unable to connect"):
+        self._message = message

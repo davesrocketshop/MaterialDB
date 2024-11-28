@@ -22,13 +22,44 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import os
+import FreeCAD
+import FreeCADGui
 
-def getUIPath():
-    """
-    Returns the current module path.
-    Determines where this file is running from, so works regardless of whether
-    the module is installed in the app's module directory or the user's app data folder.
-    (The second overrides the first.)
-    """
-    return os.path.normpath(os.path.join(os.path.dirname(__file__), '..', os.path.pardir))
+from PySide.QtGui import QMessageBox
+
+from DraftTools import translate
+
+# from MaterialDB.manager.MaterialDBManager import MaterialsDBManager
+from MaterialDB.Database.DatabaseMySQLCreate import DatabaseMySQLCreate
+
+from MaterialDB.UI.Tasks.TaskCreateDatabase import TaskPanelCreateDatabase
+
+def createDatabase():
+    db = DatabaseMySQLCreate()
+    if db.checkIfExists():
+        # DB exists
+        msgBox = QMessageBox()
+        msgBox.setText(translate('MaterialDB', "The database already exists."))
+
+        msgBox.setInformativeText(translate('MaterialDB', "Continuing will destroy the database and replace it with an empty one. Continue?"))
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msgBox.setDefaultButton(QMessageBox.Ok)
+        ret = msgBox.exec()
+        if ret != QMessageBox.Ok:
+            return
+
+    print(translate('MaterialDB', "Create database"))
+    taskd = TaskPanelCreateDatabase()
+    FreeCADGui.Control.showDialog(taskd)
+
+class CmdCreate:
+    def Activated(self):
+        createDatabase()
+
+    def IsActive(self):
+        return True
+
+    def GetResources(self):
+        return {'MenuText': translate("MaterialDB", 'Create database...'),
+                'ToolTip': translate("MaterialDB", 'Create database'),
+                'Pixmap': FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDB_Create.svg"}

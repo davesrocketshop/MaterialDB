@@ -125,8 +125,6 @@ CREATE TABLE material_tag_mapping (
         REFERENCES material_tag(material_tag_id)
 		ON DELETE CASCADE
 );
-CREATE INDEX material_tag_mapping_material_id ON material_tag_mapping (material_id);
-CREATE INDEX material_tag_mapping_material_tag_id ON material_tag_mapping (material_tag_id);
 
 DROP TABLE IF EXISTS material_models;
 CREATE TABLE material_models (
@@ -139,7 +137,6 @@ CREATE TABLE material_models (
         REFERENCES model(model_id)
 		ON DELETE CASCADE
 );
-CREATE INDEX material_models_material_id ON material_models (material_id);
 
 DROP TABLE IF EXISTS material_property_value;
 CREATE TABLE material_property_value (
