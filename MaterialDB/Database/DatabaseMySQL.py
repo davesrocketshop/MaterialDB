@@ -28,7 +28,8 @@ import Materials
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
     DatabaseModelCreationError, DatabaseMaterialCreationError, \
-    DatabaseModelExistsError, DatabaseMaterialExistsError
+    DatabaseModelExistsError, DatabaseMaterialExistsError, \
+    DatabaseModelNotFound, DatabaseMaterialNotFound
 
 class DatabaseMySQL(Database):
 
@@ -233,6 +234,7 @@ class DatabaseMySQL(Database):
         self._connection.commit()
 
     def _createMaterialModel(self, materialUUID, modelUUID):
+        print("_createMaterialModel({}, {})".format(materialUUID, modelUUID))
         cursor = self._cursor()
         cursor.execute("SELECT material_id FROM material_models WHERE material_id = ? AND model_id = ?",
                        materialUUID, modelUUID)
@@ -240,6 +242,9 @@ class DatabaseMySQL(Database):
         if not row:
             cursor.execute("INSERT INTO material_models (material_id, model_id) "
                                     "VALUES (?, ?)", materialUUID, modelUUID)
+            print("Created")
+        else:
+            print("Exists")
         self._connection.commit()
 
     def _createStringValue(self, materialUUID, name, value):
@@ -262,6 +267,8 @@ class DatabaseMySQL(Database):
            property.Type == "SVG":
             pass
         elif property.Type == "Quantity":
+            if property.Empty:
+                return
             self._createStringValue(materialUUID, property.Name, property.Value.UserString)
         else:
             self._createStringValue(materialUUID, property.Name, property.Value)
@@ -300,12 +307,15 @@ class DatabaseMySQL(Database):
             for tag in material.Tags:
                 self._createTag(material.UUID, tag)
 
+            print("{} Physical models".format(len(material.PhysicalModels)))
             for model in material.PhysicalModels:
                 self._createMaterialModel(material.UUID, model)
 
+            print("{} Appearance models".format(len(material.AppearanceModels)))
             for model in material.AppearanceModels:
                 self._createMaterialModel(material.UUID, model)
 
+            print("{} Properties".format(len(material.PropertyObjects)))
             for property in material.PropertyObjects.values():
                 self._createMaterialProperty(material.UUID, property)
 
@@ -422,7 +432,7 @@ class DatabaseMySQL(Database):
 
             rows = cursor.fetchall()
             for row in rows:
-                prop = Materials.Model.ModelProperty()
+                prop = Materials.ModelProperty()
                 prop.Name = row.model_property_name
                 prop.DisplayName = row.model_property_display_name
                 prop.Type = row.model_property_type
@@ -446,7 +456,7 @@ class DatabaseMySQL(Database):
 
         rows = cursor.fetchall()
         for row in rows:
-            prop = Materials.Model.ModelProperty()
+            prop = Materials.ModelProperty()
             prop.Name = row.model_property_name
             prop.DisplayName = row.model_property_display_name
             prop.Type = row.model_property_type
@@ -460,31 +470,35 @@ class DatabaseMySQL(Database):
         for property in properties:
             columns = self._getModelColumns(uuid, property.Name)
             for column in columns:
-                property.addColumns(column)
+                property.addColumn(column)
 
         return properties
 
     @lru_cache(maxsize=100)
     def getModel(self, uuid):
-        cursor = self._cursor()
-        cursor.execute("SELECT library_id, folder_id, model_type, "
-            "model_name, model_url, model_description, model_doi FROM model WHERE model_id = ?",
-                       uuid)
+        try:
+            cursor = self._cursor()
+            cursor.execute("SELECT library_id, folder_id, model_type, "
+                "model_name, model_url, model_description, model_doi FROM model WHERE model_id = ?",
+                        uuid)
 
-        row = cursor.fetchone()
-        if row:
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseModelNotFound()
+
             model = Materials.Model()
-            model.UUID = uuid
+            # model.UUID = uuid
             model.Type = row.model_type
             model.Name = row.model_name
             model.URL = row.model_url
             model.Description = row.model_description
             model.DOI = row.model_doi
 
-            model.Library = self._getLibrary(row.library_id)
+            # model.Library = self._getLibrary(row.library_id)
+            library = self._getLibrary(row.library_id)
 
             path = self._getPath(row.folder_id) + "/" + row.model_name
-            model.Path = path
+            model.Directory = path
 
             inherits = self._getInherits(uuid)
             for inherit in inherits:
@@ -492,11 +506,16 @@ class DatabaseMySQL(Database):
 
             properties = self._getModelProperties(uuid)
             for property in properties:
-                model.addProperty(inherit)
+                model.addProperty(property)
 
-            return model
+            return (uuid, library, model)
 
-        return None
+        except DatabaseModelNotFound as notFound:
+            # Rethrow
+            raise notFound
+        except Exception as ex:
+            print("Unable to get model:", ex)
+            raise DatabaseModelNotFound(ex)
 
     def _getTags(self, uuid):
         tags = []
@@ -517,7 +536,7 @@ class DatabaseMySQL(Database):
         cursor.execute("SELECT m1.model_id FROM material_models m1, model m2 "
             "WHERE m1.material_id = ? AND m1.model_id = m2.model_id AND m2.model_type = ?",
                        uuid,
-                       ("Model" if isPhysical else "AppearanceModel"))
+                       ("Physical" if isPhysical else "Appearance"))
 
         rows = cursor.fetchall()
         for row in rows:
@@ -535,22 +554,24 @@ class DatabaseMySQL(Database):
 
         rows = cursor.fetchall()
         for row in rows:
-            properties[row.property_name] = row.property_value
+            properties[row.material_property_name] = row.material_property_value
 
         return properties
 
     def getMaterial(self, uuid):
-        cursor = self._cursor()
-        cursor.execute("SELECT library_id, folder_id, material_name, "
-                            "material_author, material_license, material_parent_uuid, "
-                            "material_description, material_url, material_reference FROM "
-                            "material WHERE material_id = ?",
-                       uuid)
+        try:
+            cursor = self._cursor()
+            cursor.execute("SELECT library_id, folder_id, material_name, "
+                                "material_author, material_license, material_parent_uuid, "
+                                "material_description, material_url, material_reference FROM "
+                                "material WHERE material_id = ?",
+                        uuid)
 
-        row = cursor.fetchone()
-        if row:
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseMaterialNotFound()
             material = Materials.Material()
-            material.UUID = uuid
+            # material.UUID = uuid
             material.Name = row.material_name
             material.Author = row.material_author
             material.License = row.material_license
@@ -559,7 +580,7 @@ class DatabaseMySQL(Database):
             material.URL = row.material_url
             material.Reference = row.material_reference
 
-            material.Library = self._getMaterialLibrary(row.library_id)
+            library = self._getMaterialLibrary(row.library_id)
 
             path = self._getPath(row.folder_id) + "/" + row.material_name
             material.Directory = path
@@ -574,11 +595,91 @@ class DatabaseMySQL(Database):
             for model in self._getMaterialModels(uuid, False):
                 material.addAppearanceModel(model)
 
+            self.addModelProperties(material)
+
             # The actual properties are set by the model. We just need to load the values
             properties = self._getMaterialProperties(uuid)
             for name, value in properties.items():
                 material.setValue(name, value)
 
-            return material
+            return (uuid, library, material)
 
-        return None
+        except DatabaseMaterialNotFound as notFound:
+            # Rethrow
+            raise notFound
+        except Exception as ex:
+            print("Unable to get model:", ex)
+            raise DatabaseMaterialNotFound(ex)
+
+    def addModelProperties(self, material):
+        print("addModelProperties()")
+        print("{} Physical models".format(len(material.PhysicalModels)))
+        print("{} Appearance models".format(len(material.AppearanceModels)))
+        print("{} Properties".format(len(material.PropertyObjects)))
+
+# void MaterialLoader::dereference(
+#     const std::shared_ptr<std::map<QString, std::shared_ptr<Material>>>& materialMap,
+#     const std::shared_ptr<Material>& material)
+# {
+#     // Avoid recursion
+#     if (material->getDereferenced()) {
+#         return;
+#     }
+
+#     auto parentUUID = material->getParentUUID();
+#     if (parentUUID.size() > 0) {
+#         std::shared_ptr<Material> parent;
+#         try {
+#             parent = materialMap->at(parentUUID);
+#         }
+#         catch (std::out_of_range&) {
+#             Base::Console().Log(
+#                 "Unable to apply inheritance for material '%s', parent '%s' not found.\n",
+#                 material->getName().toStdString().c_str(),
+#                 parentUUID.toStdString().c_str());
+#             return;
+#         }
+
+#         // Ensure the parent has been dereferenced
+#         dereference(materialMap, parent);
+
+#         // Add physical models
+#         auto modelVector = parent->getPhysicalModels();
+#         for (auto& model : *modelVector) {
+#             if (!material->hasPhysicalModel(model)) {
+#                 material->addPhysical(model);
+#             }
+#         }
+
+#         // Add appearance models
+#         modelVector = parent->getAppearanceModels();
+#         for (auto& model : *modelVector) {
+#             if (!material->hasAppearanceModel(model)) {
+#                 material->addAppearance(model);
+#             }
+#         }
+
+#         // Add values
+#         auto properties = parent->getPhysicalProperties();
+#         for (auto& itp : properties) {
+#             auto name = itp.first;
+#             auto property = itp.second;
+
+#             if (material->getPhysicalProperty(name)->isNull()) {
+#                 material->getPhysicalProperty(name)->setValue(property->getValue());
+#             }
+#         }
+
+#         properties = parent->getAppearanceProperties();
+#         for (auto& itp : properties) {
+#             auto name = itp.first;
+#             auto property = itp.second;
+
+#             if (material->getAppearanceProperty(name)->isNull()) {
+#                 material->getAppearanceProperty(name)->setValue(property->getValue());
+#             }
+#         }
+#     }
+
+#     material->markDereferenced();
+# }

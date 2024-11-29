@@ -36,6 +36,13 @@
     </layout>
    </item>
    <item>
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>Status</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QTextEdit" name="textStatus">
      <property name="lineWrapMode">
       <enum>QTextEdit::NoWrap</enum>

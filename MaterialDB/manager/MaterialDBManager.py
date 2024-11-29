@@ -29,7 +29,8 @@ from MaterialAPI.MaterialManagerExternal import MaterialManagerExternal
 from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
     DatabaseModelCreationError, DatabaseMaterialCreationError, \
-    DatabaseModelExistsError, DatabaseMaterialExistsError
+    DatabaseModelExistsError, DatabaseMaterialExistsError, \
+    DatabaseModelNotFound, DatabaseMaterialNotFound
 
 class MaterialsDBManager(MaterialManagerExternal):
 
@@ -74,7 +75,8 @@ class MaterialsDBManager(MaterialManagerExternal):
     #
 
     def getModel(self, uuid: str) -> Materials.Model:
-        pass
+        print("getModel('{}')".format(uuid))
+        return self._db.getModel(uuid)
 
     def addModel(self, library: str, path: str, model: Materials.Model) -> None:
         print("addModel('{}', '{}', '{}')".format(library, path, model.Name))
@@ -110,6 +112,7 @@ class MaterialsDBManager(MaterialManagerExternal):
 
     def getMaterial(self, uuid: str) -> Materials.Material:
         print("getMaterial('{}')".format(uuid))
+        return self._db.getMaterial(uuid)
 
     def addMaterial(self, library: str, path: str, material: Materials.Material) -> None:
         print("addMaterial('{}', '{}', '{}')".format(library, path, material.Name))
@@ -121,7 +124,7 @@ class MaterialsDBManager(MaterialManagerExternal):
             self._db.createMaterial(library, path, material)
         except DatabaseMaterialExistsError:
             # If it exists we just ignore
-            # print("Ignore DatabaseModelExistsError error")
+            print("Ignore DatabaseModelExistsError error")
             pass
 
     def updateMaterial(self, library: str, path: str, material: Materials.Material) -> None:

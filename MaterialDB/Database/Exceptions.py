@@ -73,6 +73,17 @@ class DatabaseModelExistsError(Exception):
             return repr(self._error)
         return repr(self.msg)
 
+class DatabaseModelNotFound(Exception):
+
+    def __init__(self, error=None):
+        self._error = error
+        self.msg = "Model not found"
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
+
 #---
 #
 # Material errors
@@ -89,6 +100,17 @@ class DatabaseMaterialExistsError(Exception):
     def __init__(self, error=None):
         self._error = error
         self.msg = "Material already exists"
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
+
+class DatabaseMaterialNotFound(Exception):
+
+    def __init__(self, error=None):
+        self._error = error
+        self.msg = "Material not found"
 
     def __str__(self):
         if self._error is not None:
