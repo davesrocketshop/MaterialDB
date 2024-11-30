@@ -29,6 +29,7 @@ import FreeCAD
 from DraftTools import translate
 
 from MaterialDB.Database.Exceptions import DatabaseConnectionError
+from MaterialDB.Configuration import getPreferencesLocation
 
 class Database:
 
@@ -56,13 +57,36 @@ class Database:
 
     def _connectODBC(self):
         try:
-            self._connection = pyodbc.connect('DSN=material;charset=utf8mb4')
+            prefs = getPreferencesLocation()
+            connectString = ""
+            currentDSN = FreeCAD.ParamGet(prefs).GetString("DSN", "")
+            connectString = 'DSN={}'.format(currentDSN)
+            hostname = FreeCAD.ParamGet(prefs).GetString("Hostname", "")
+            if hostname:
+                  connectString = connectString + ";Server={}".format(hostname)
+            port = FreeCAD.ParamGet(prefs).GetString("Port", "")
+            if port:
+                  connectString = connectString + ";Port={}".format(port)
+            dbName = FreeCAD.ParamGet(prefs).GetString("Database", "material")
+            if dbName:
+                  connectString = connectString + ";Database={}".format(dbName)
+            username = FreeCAD.ParamGet(prefs).GetString("Username", "")
+            if username:
+                  connectString = connectString + ";Uid={}".format(username)
+            password = FreeCAD.ParamGet(prefs).GetString("Password", "")
+            if password:
+                  connectString = connectString + ";Pwd={}".format(password)
+            connectString = connectString + ";charset=utf8mb4"
+            print(connectString)
+
+            self._connection = pyodbc.connect(connectString)
             self._connection.setdecoding(pyodbc.SQL_CHAR, encoding='utf-8')
             self._connection.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
             self._connection.setencoding(encoding='utf-8')
         except Exception as ex:
             print("Unable to create connection:", ex)
             self._connection = None
+            raise DatabaseConnectionError(ex)
 
     def _lastId(self, cursor):
         """Returns the last insertion id"""

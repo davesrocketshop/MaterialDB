@@ -17,57 +17,16 @@
    <item>
     <widget class="QGroupBox" name="groupDatabase">
      <property name="title">
-      <string>Use Database</string>
+      <string>Connection</string>
      </property>
      <property name="checkable">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
-      <item row="6" column="2">
-       <widget class="Gui::PrefLineEdit" name="inputPassword">
-        <property name="prefEntry" stdset="0">
-         <cstring>Password</cstring>
-        </property>
-        <property name="prefPath" stdset="0">
-         <cstring>Mod/Material/Database</cstring>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label_2">
+      <item row="9" column="0">
+       <widget class="QLabel" name="label_5">
         <property name="text">
-         <string>Host</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="2">
-       <widget class="QPushButton" name="buttonTest">
-        <property name="text">
-         <string>Test</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>Database</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="2">
-       <widget class="Gui::PrefLineEdit" name="inputDatabase">
-        <property name="prefEntry" stdset="0">
-         <cstring>Database</cstring>
-        </property>
-        <property name="prefPath" stdset="0">
-         <cstring>Mod/Material/Database</cstring>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>Username</string>
+         <string>Password</string>
         </property>
        </widget>
       </item>
@@ -78,155 +37,68 @@
         </property>
        </widget>
       </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="label_5">
-        <property name="text">
-         <string>Password</string>
-        </property>
-       </widget>
-      </item>
       <item row="3" column="2">
-       <widget class="Gui::PrefLineEdit" name="inputHostname">
-        <property name="prefEntry" stdset="0">
-         <cstring>Host</cstring>
-        </property>
-        <property name="prefPath" stdset="0">
-         <cstring>Mod/Material/Database</cstring>
-        </property>
-       </widget>
+       <widget class="QComboBox" name="comboDSN"/>
       </item>
-      <item row="5" column="2">
-       <widget class="Gui::PrefLineEdit" name="inputUsername">
-        <property name="prefEntry" stdset="0">
-         <cstring>Username</cstring>
-        </property>
-        <property name="prefPath" stdset="0">
-         <cstring>Mod/Material/Database</cstring>
-        </property>
-       </widget>
+      <item row="8" column="2">
+       <widget class="QLineEdit" name="editUsername"/>
       </item>
       <item row="0" column="2">
-       <widget class="Gui::PrefComboBox" name="comboConnectionType">
-        <property name="currentText">
-         <string notr="true"/>
-        </property>
-        <property name="prefEntry" stdset="0">
-         <cstring>ConnectionType</cstring>
-        </property>
-        <property name="prefPath" stdset="0">
-         <cstring>Mod/Material/Database</cstring>
-        </property>
-       </widget>
+       <widget class="QComboBox" name="comboConnectionType"/>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_6">
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_3">
         <property name="text">
-         <string>Database Type</string>
+         <string>Database</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="2">
-       <widget class="Gui::PrefComboBox" name="comboDBType">
-        <property name="prefEntry" stdset="0">
-         <cstring>DBType</cstring>
-        </property>
-        <property name="prefPath" stdset="0">
-         <cstring>Mod/Material/Database</cstring>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="groupBox_2">
-     <property name="title">
-      <string>Cache</string>
-     </property>
-     <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_7">
+      <item row="10" column="2">
+       <widget class="QPushButton" name="buttonTest">
         <property name="text">
-         <string>Model Cache Size</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_8">
-        <property name="text">
-         <string>Meterial Cache Size</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLineEdit" name="inputModelCacheHitRate">
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QLineEdit" name="inputMaterialCacheHitRate"/>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_9">
-        <property name="text">
-         <string>Hit Rate</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         <string>Test</string>
         </property>
        </widget>
       </item>
       <item row="3" column="0">
-       <widget class="QLabel" name="label_10">
+       <widget class="QLabel" name="label_11">
         <property name="text">
-         <string>Hit Rate</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         <string>DSN</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
-       <widget class="Gui::PrefSpinBox" name="spinMaterialCacheSize">
-        <property name="maximum">
-         <number>4096</number>
-        </property>
-        <property name="prefEntry" stdset="0">
-         <cstring>MaterialCacheSize</cstring>
-        </property>
-        <property name="prefPath" stdset="0">
-         <cstring>Mod/Material/Database</cstring>
-        </property>
-       </widget>
+      <item row="4" column="2">
+       <widget class="QLineEdit" name="editDatabase"/>
       </item>
-      <item row="0" column="1">
-       <widget class="Gui::PrefSpinBox" name="spinModelCacheSize">
-        <property name="maximum">
-         <number>4096</number>
-        </property>
-        <property name="prefEntry" stdset="0">
-         <cstring>ModelCacheSize</cstring>
-        </property>
-        <property name="prefPath" stdset="0">
-         <cstring>Mod/Material/Database</cstring>
-        </property>
-       </widget>
+      <item row="6" column="2">
+       <widget class="QLineEdit" name="editHostname"/>
       </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="buttonModelResetCache">
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_2">
         <property name="text">
-         <string>Reset Cache</string>
+         <string>Host</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="2">
-       <widget class="QPushButton" name="buttonMaterialResetCache">
+      <item row="8" column="0">
+       <widget class="QLabel" name="label_4">
         <property name="text">
-         <string>Reset Cache</string>
+         <string>Username</string>
         </property>
        </widget>
+      </item>
+      <item row="9" column="2">
+       <widget class="QLineEdit" name="editPassword"/>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Port</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="2">
+       <widget class="QLineEdit" name="editPort"/>
       </item>
      </layout>
     </widget>
@@ -246,23 +118,6 @@
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>Gui::PrefSpinBox</class>
-   <extends>QSpinBox</extends>
-   <header>Gui/PrefWidgets.h</header>
-  </customwidget>
-  <customwidget>
-   <class>Gui::PrefComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Gui/PrefWidgets.h</header>
-  </customwidget>
-  <customwidget>
-   <class>Gui::PrefLineEdit</class>
-   <extends>QLineEdit</extends>
-   <header>Gui/PrefWidgets.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

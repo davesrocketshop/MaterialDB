@@ -198,9 +198,11 @@ class DatabaseMySQLCreate(DatabaseMySQL):
         except Exception as err:
             raise DatabaseTableCreationError(err)
 
-    def createDatabase(self):
+    def createDatabase(self, dbName):
         try:
-            dbName = getDatabaseName()
+            print("dbName '{}'".format(dbName))
+            if len(dbName) < 1:
+                raise Exception("You must provide a database name")
             cursor = self._cursor()
 
             cursor.execute(
@@ -212,5 +214,6 @@ class DatabaseMySQLCreate(DatabaseMySQL):
             cursor.execute("USE {}".format(dbName))
             cursor.commit()
         except Exception as err:
+            print(err)
             raise DatabaseCreationError(err)
 

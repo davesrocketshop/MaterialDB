@@ -27,9 +27,24 @@ import FreeCADGui
 
 class MaterialDBWorkbench ( FreeCADGui.Workbench ):
     "MaterialDB workbench object"
-    Icon = FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDBWorkbench.svg"
-    MenuText = "MaterialDB"
-    ToolTip = "MaterialDB workbench"
+
+    def __init__(self):
+        from PySide import QtCore
+
+        self.__class__.Icon = (
+            FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDBWorkbench.svg"
+        )
+        self.__class__.MenuText = "MaterialDB"
+        self.__class__.ToolTip = "MaterialDB workbench"
+
+        icons_path = FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons"
+        QtCore.QDir.addSearchPath("icons", icons_path)
+
+
+    def _addPreferencePages(self):
+        from MaterialDB.UI.Settings.DlgSettingsDatabase import DlgSettingsDatabase
+
+        FreeCADGui.addPreferencePage(DlgSettingsDatabase, "MaterialDB")
 
     def _loadMaterialModule(self):
         import Material
@@ -46,6 +61,7 @@ class MaterialDBWorkbench ( FreeCADGui.Workbench ):
         from PySide.QtCore import QT_TRANSLATE_NOOP
 
         self._loadMaterialModule()
+        self._addPreferencePages()
 
         self.appendToolbar(QT_TRANSLATE_NOOP('MaterialDB', 'MaterialDB'),
                         ['MaterialDB_CreateDatabase', 'MaterialDB_Migrate'])
