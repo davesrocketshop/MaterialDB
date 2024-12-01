@@ -38,14 +38,17 @@ class Database:
 
         # self._database = "material" # This needs to be generalized
 
-    def _connect(self):
+    def _connect(self, noDatabase=False):
         if self._connection is None:
-            self._connectODBC()
+            self._connectODBC(noDatabase)
 
-    def _cursor(self):
+    def _disconnect(self):
+        self._connection = None
+
+    def _cursor(self, noDatabase=False):
         for retry in range(3):
             try:
-                self._connect()
+                self._connect(noDatabase)
                 cursor = self._connection.cursor()
                 return cursor
             except pyodbc.ProgrammingError:
@@ -55,20 +58,28 @@ class Database:
 
         raise DatabaseConnectionError()
 
-    def _connectODBC(self):
+    def _connectODBC(self, noDatabase=False):
         try:
             prefs = getPreferencesLocation()
             connectString = ""
+            currentDriver = FreeCAD.ParamGet(prefs).GetString("Driver", "")
+            if currentDriver:
+                  connectString = connectString + "Driver={}".format(currentDriver)
             currentDSN = FreeCAD.ParamGet(prefs).GetString("DSN", "")
-            connectString = 'DSN={}'.format(currentDSN)
+            if currentDSN:
+                if connectString:
+                    connectString = connectString + ';'
+                connectString = connectString + 'DSN={}'.format(currentDSN)
             hostname = FreeCAD.ParamGet(prefs).GetString("Hostname", "")
             if hostname:
-                  connectString = connectString + ";Server={}".format(hostname)
+                if connectString:
+                    connectString = connectString + ';'
+                connectString = connectString + "Server={}".format(hostname)
             port = FreeCAD.ParamGet(prefs).GetString("Port", "")
             if port:
                   connectString = connectString + ";Port={}".format(port)
             dbName = FreeCAD.ParamGet(prefs).GetString("Database", "material")
-            if dbName:
+            if dbName and not noDatabase:
                   connectString = connectString + ";Database={}".format(dbName)
             username = FreeCAD.ParamGet(prefs).GetString("Username", "")
             if username:

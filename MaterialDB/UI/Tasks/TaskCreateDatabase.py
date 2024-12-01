@@ -65,6 +65,7 @@ class TaskPanelCreateDatabase(QtCore.QObject):
         createButton.setText(translate("MaterialDB", "Create"))
 
     def accept(self):
+        self.saveSettings()
 
         try:
             self.updateStatus(translate('MaterialDB', "Creating database..."))
@@ -72,7 +73,6 @@ class TaskPanelCreateDatabase(QtCore.QObject):
             self.updateStatus(translate('MaterialDB', "Creating tables..."))
             self._db.createTables()
             self.updateStatus(translate('MaterialDB', "done"))
-            self.saveSettings() # Save the database name on success
         except DatabaseCreationError as dbErr:
             self.reportError(translate('MaterialDB', "Unable to create database."),
                              dbErr._error)

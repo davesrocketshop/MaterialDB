@@ -54,6 +54,7 @@ class DlgSettingsDatabase(QtCore.QObject):
     def saveSettings(self):
         prefs = getPreferencesLocation()
         FreeCAD.ParamGet(prefs).SetString("Connection", self.form.comboConnectionType.currentText())
+        FreeCAD.ParamGet(prefs).SetString("Driver", self.form.comboDriver.currentText())
         FreeCAD.ParamGet(prefs).SetString("DSN", self.form.comboDSN.currentData())
         FreeCAD.ParamGet(prefs).SetString("Database", self.form.editDatabase.text())
         FreeCAD.ParamGet(prefs).SetString("Hostname", self.form.editHostname.text())
@@ -71,7 +72,8 @@ class DlgSettingsDatabase(QtCore.QObject):
         connectionType = FreeCAD.ParamGet(prefs).GetString("Connection", "ODBC")
         self.form.comboConnectionType.setCurrentText(connectionType)
 
-        self.show_odbc_sources()
+        self.showOdbcDrivers()
+        self.showOdbcDSNs()
 
         dbName = FreeCAD.ParamGet(prefs).GetString("Database", "material")
         self.form.editDatabase.setText(dbName)
@@ -84,7 +86,23 @@ class DlgSettingsDatabase(QtCore.QObject):
         password = FreeCAD.ParamGet(prefs).GetString("Password", "")
         self.form.editPassword.setText(password)
 
-    def show_odbc_sources(self):
+    def showOdbcDrivers(self):
+        self.form.comboDriver.clear()
+        self.form.comboDriver.addItem("")
+
+        drivers = pyodbc.drivers()
+        for driver in drivers:
+            self.form.comboDriver.addItem(driver)
+
+        prefs = getPreferencesLocation()
+        currentDSN = FreeCAD.ParamGet(prefs).GetString("Driver", "")
+        if currentDSN in drivers:
+            self.form.comboDSN.setCurrentText(driver)
+
+    def showOdbcDSNs(self):
+        self.form.comboDSN.clear()
+        self.form.comboDSN.addItem("", "")
+
         sources = pyodbc.dataSources()
         dsns = sources.keys()
         # dsns.sort()

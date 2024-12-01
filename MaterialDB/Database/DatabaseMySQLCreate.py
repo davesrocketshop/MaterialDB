@@ -203,7 +203,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
             print("dbName '{}'".format(dbName))
             if len(dbName) < 1:
                 raise Exception("You must provide a database name")
-            cursor = self._cursor()
+            cursor = self._cursor(noDatabase=True)
 
             cursor.execute(
                 "DROP DATABASE IF EXISTS {}".format(dbName))
@@ -215,5 +215,9 @@ class DatabaseMySQLCreate(DatabaseMySQL):
             cursor.commit()
         except Exception as err:
             print(err)
+            self._disconnect()
             raise DatabaseCreationError(err)
+
+        # Force a reconnection with the newly created database
+        self._disconnect()
 

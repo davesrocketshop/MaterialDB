@@ -37,28 +37,11 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="2">
-       <widget class="QComboBox" name="comboDSN"/>
-      </item>
-      <item row="8" column="2">
-       <widget class="QLineEdit" name="editUsername"/>
-      </item>
       <item row="0" column="2">
        <widget class="QComboBox" name="comboConnectionType"/>
       </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>Database</string>
-        </property>
-       </widget>
-      </item>
-      <item row="10" column="2">
-       <widget class="QPushButton" name="buttonTest">
-        <property name="text">
-         <string>Test</string>
-        </property>
-       </widget>
+      <item row="7" column="2">
+       <widget class="QLineEdit" name="editPort"/>
       </item>
       <item row="3" column="0">
        <widget class="QLabel" name="label_11">
@@ -67,11 +50,44 @@
         </property>
        </widget>
       </item>
+      <item row="6" column="2">
+       <widget class="QLineEdit" name="editHostname"/>
+      </item>
+      <item row="9" column="2">
+       <widget class="QLineEdit" name="editPassword"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>Driver</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Port</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Database</string>
+        </property>
+       </widget>
+      </item>
       <item row="4" column="2">
        <widget class="QLineEdit" name="editDatabase"/>
       </item>
-      <item row="6" column="2">
-       <widget class="QLineEdit" name="editHostname"/>
+      <item row="8" column="2">
+       <widget class="QLineEdit" name="editUsername"/>
+      </item>
+      <item row="1" column="2">
+       <widget class="QComboBox" name="comboDriver"/>
+      </item>
+      <item row="3" column="2">
+       <widget class="QComboBox" name="comboDSN"/>
       </item>
       <item row="6" column="0">
        <widget class="QLabel" name="label_2">
@@ -86,19 +102,6 @@
          <string>Username</string>
         </property>
        </widget>
-      </item>
-      <item row="9" column="2">
-       <widget class="QLineEdit" name="editPassword"/>
-      </item>
-      <item row="7" column="0">
-       <widget class="QLabel" name="label_6">
-        <property name="text">
-         <string>Port</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="2">
-       <widget class="QLineEdit" name="editPort"/>
       </item>
      </layout>
     </widget>
@@ -118,6 +121,16 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>comboConnectionType</tabstop>
+  <tabstop>comboDriver</tabstop>
+  <tabstop>comboDSN</tabstop>
+  <tabstop>editDatabase</tabstop>
+  <tabstop>editHostname</tabstop>
+  <tabstop>editPort</tabstop>
+  <tabstop>editUsername</tabstop>
+  <tabstop>editPassword</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>
