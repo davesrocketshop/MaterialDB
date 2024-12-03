@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
-  <name>Rocket</name>
+  <name>MaterialDB</name>
   <description>A database interface for FreeCAD materials.</description>
   <version>0.0.1</version>
   <date>2024-11-19</date>
@@ -12,7 +12,7 @@
 
   <content>
     <workbench>
-      <classname>MaterialDB</classname>
+      <classname>MaterialDBWorkbench</classname>
       <subdirectory>./</subdirectory>
       <tag>materials</tag>
 

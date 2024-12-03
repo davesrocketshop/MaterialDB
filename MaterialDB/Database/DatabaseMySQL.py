@@ -337,7 +337,7 @@ class DatabaseMySQL(Database):
                                     "library")
         rows = cursor.fetchall()
         for row in rows:
-            libraries.append((row.library_name, row.library_icon, row.library_read_only))
+            libraries.append((row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only))
 
         return libraries
 
@@ -348,7 +348,7 @@ class DatabaseMySQL(Database):
                        " FROM library l, model m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
         for row in rows:
-            libraries.append((row.library_name, row.library_icon, row.library_read_only))
+            libraries.append((row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only))
 
         return libraries
 
@@ -359,7 +359,7 @@ class DatabaseMySQL(Database):
                        " FROM library l, material m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
         for row in rows:
-            libraries.append((row.library_name, row.library_icon, row.library_read_only))
+            libraries.append((row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only))
 
         return libraries
 
@@ -370,7 +370,7 @@ class DatabaseMySQL(Database):
                        libraryId)
         row = cursor.fetchone()
         if row:
-            return (row.library_name, row.library_icon, row.library_read_only)
+            return (row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only)
         return None
 
     def _getMaterialLibrary(self, libraryId):
@@ -382,7 +382,7 @@ class DatabaseMySQL(Database):
         row = cursor.fetchone()
         if row:
             # This needs to be a library object
-            return Materials.MaterialLibrary(row.library_name, row.library_icon, row.library_read_only)
+            return Materials.MaterialLibrary(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only)
         return None
 
     def _getPath(self, folderId):
