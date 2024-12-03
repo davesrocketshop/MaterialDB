@@ -50,6 +50,17 @@ class DatabaseLibraryCreationError(Exception):
     def __init__(self, error):
         self._error = error
 
+class DatabaseIconError(Exception):
+
+    def __init__(self, msg="Unable to set icon", error=None):
+        self._error = error
+        self.msg = msg
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
+
 
 #---
 #
@@ -111,6 +122,34 @@ class DatabaseMaterialNotFound(Exception):
     def __init__(self, error=None):
         self._error = error
         self.msg = "Material not found"
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
+
+#---
+#
+# Generic errors
+#
+#---
+
+class DatabaseRenameError(Exception):
+
+    def __init__(self, msg="Unable to rename object", error=None):
+        self._error = error
+        self.msg = msg
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
+
+class DatabaseDeleteError(Exception):
+
+    def __init__(self, msg="Unable to remove object", error=None):
+        self._error = error
+        self.msg = msg
 
     def __str__(self):
         if self._error is not None:

@@ -55,20 +55,23 @@ class MaterialsDBManager(MaterialManagerExternal):
 
     def renameLibrary(self, oldName: str, newName: str) -> None:
         print("renameLibrary('{}', '{}')".format(oldName, newName))
+        self._db.renameLibrary(oldName, newName)
 
     def changeIcon(self, name: str, icon: str) -> None:
         print("changeIcon('{}', '{}')".format(name, icon))
+        self._db.changeIcon(name, icon)
 
     def removeLibrary(self, library: str) -> None:
         print("removeLibrary('{}')".format(library))
+        self._db.removeLibrary(library)
 
     def libraryModels(self, library: str) -> list:
         print("libraryModels('{}')".format(library))
-        return []
+        return self._db.libraryModels(library)
 
     def libraryMaterials(self, library: str) -> list:
         print("libraryMaterials('{}')".format(library))
-        return []
+        return self._db.libraryMaterials(library)
 
     #
     # Model methods
@@ -88,7 +91,6 @@ class MaterialsDBManager(MaterialManagerExternal):
             self._db.createModel(library, path, model)
         except DatabaseModelExistsError:
             # If it exists we just ignore
-            # print("Ignore DatabaseModelExistsError error")
             pass
 
     def updateModel(self, library: str, path: str, model: Materials.Model) -> None:

@@ -25,9 +25,11 @@ __url__ = "https://www.davesrocketshop.com"
 import Materials
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
+    DatabaseIconError, \
     DatabaseModelCreationError, DatabaseMaterialCreationError, \
     DatabaseModelExistsError, DatabaseMaterialExistsError, \
-    DatabaseModelNotFound, DatabaseMaterialNotFound
+    DatabaseModelNotFound, DatabaseMaterialNotFound, \
+    DatabaseRenameError, DatabaseDeleteError
 
 class DatabaseMySQL(Database):
 
@@ -60,6 +62,74 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             print("Unable to create library:", ex)
             raise DatabaseLibraryCreationError(ex)
+
+    def renameLibrary(self, oldName, newName):
+        try:
+            cursor = self._cursor()
+
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", newName)
+            row = cursor.fetchone()
+            if row:
+                raise DatabaseRenameError(msg="Destination library name already exists")
+
+            cursor.execute("UPDATE library SET library_name = ? "
+                                "WHERE library_name = ?", newName, oldName)
+
+            self._connection.commit()
+        except Exception as ex:
+            print("Unable to create library:", ex)
+            raise DatabaseRenameError(ex)
+
+    def changeIcon(self, name, icon):
+        try:
+            cursor = self._cursor()
+
+            cursor.execute("UPDATE library SET library_icon = ? "
+                                "WHERE library_name = ?", icon, name)
+
+            self._connection.commit()
+        except Exception as ex:
+            print("Unable to change icon:", ex)
+            raise DatabaseIconError(ex)
+
+    def removeLibrary(self, library):
+        try:
+            cursor = self._cursor()
+
+            cursor.execute("DELETE FROM library WHERE library_name = ?", library)
+
+            self._connection.commit()
+        except Exception as ex:
+            print("Unable to remove library:", ex)
+            raise DatabaseDeleteError(ex)
+
+    def libraryModels(self, library):
+        try:
+            models = []
+            cursor = self._cursor()
+            cursor.execute("SELECT m.model_id FROM model m, library l WHERE m.library_id = l.library_id AND l.library_name = ?", library)
+            rows = cursor.fetchall()
+            for row in rows:
+                models.append(row.model_id)
+
+            return models
+        except Exception as ex:
+            print("Unable to get library models:", ex)
+            raise DatabaseModelNotFound(ex)
+
+    def libraryMaterials(self, library):
+        try:
+            materials = []
+            cursor = self._cursor()
+            cursor.execute("SELECT m.material_id FROM material m, library l WHERE m.library_id = l.library_id AND l.library_name = ?", library)
+            rows = cursor.fetchall()
+            for row in rows:
+                materials.append(row.material_id)
+
+            return materials
+        except Exception as ex:
+            print("Unable to get library materials:", ex)
+            raise DatabaseModelNotFound(ex)
 
     def _createPathRecursive(self, libraryIndex, parentIndex, pathIndex, pathList):
         newId = 0
