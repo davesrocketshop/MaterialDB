@@ -95,9 +95,9 @@ class DlgSettingsDatabase(QtCore.QObject):
             self.form.comboDriver.addItem(driver)
 
         prefs = getPreferencesLocation()
-        currentDSN = FreeCAD.ParamGet(prefs).GetString("Driver", "")
-        if currentDSN in drivers:
-            self.form.comboDSN.setCurrentText(driver)
+        currentDriver = FreeCAD.ParamGet(prefs).GetString("Driver", "")
+        if currentDriver in drivers:
+            self.form.comboDriver.setCurrentText(currentDriver)
 
     def showOdbcDSNs(self):
         self.form.comboDSN.clear()

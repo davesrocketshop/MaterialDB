@@ -22,8 +22,6 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-from functools import lru_cache
-
 import Materials
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
@@ -200,7 +198,6 @@ class DatabaseMySQL(Database):
         self._connection.commit()
 
     def createModel(self, libraryName, path, model):
-        self.getModel.cache_clear()
         try:
             libraryIndex = self._findLibrary(libraryName)
             if libraryIndex > 0:
@@ -474,7 +471,6 @@ class DatabaseMySQL(Database):
 
         return properties
 
-    @lru_cache(maxsize=100)
     def getModel(self, uuid):
         try:
             cursor = self._cursor()
@@ -616,70 +612,3 @@ class DatabaseMySQL(Database):
         print("{} Physical models".format(len(material.PhysicalModels)))
         print("{} Appearance models".format(len(material.AppearanceModels)))
         print("{} Properties".format(len(material.PropertyObjects)))
-
-# void MaterialLoader::dereference(
-#     const std::shared_ptr<std::map<QString, std::shared_ptr<Material>>>& materialMap,
-#     const std::shared_ptr<Material>& material)
-# {
-#     // Avoid recursion
-#     if (material->getDereferenced()) {
-#         return;
-#     }
-
-#     auto parentUUID = material->getParentUUID();
-#     if (parentUUID.size() > 0) {
-#         std::shared_ptr<Material> parent;
-#         try {
-#             parent = materialMap->at(parentUUID);
-#         }
-#         catch (std::out_of_range&) {
-#             Base::Console().Log(
-#                 "Unable to apply inheritance for material '%s', parent '%s' not found.\n",
-#                 material->getName().toStdString().c_str(),
-#                 parentUUID.toStdString().c_str());
-#             return;
-#         }
-
-#         // Ensure the parent has been dereferenced
-#         dereference(materialMap, parent);
-
-#         // Add physical models
-#         auto modelVector = parent->getPhysicalModels();
-#         for (auto& model : *modelVector) {
-#             if (!material->hasPhysicalModel(model)) {
-#                 material->addPhysical(model);
-#             }
-#         }
-
-#         // Add appearance models
-#         modelVector = parent->getAppearanceModels();
-#         for (auto& model : *modelVector) {
-#             if (!material->hasAppearanceModel(model)) {
-#                 material->addAppearance(model);
-#             }
-#         }
-
-#         // Add values
-#         auto properties = parent->getPhysicalProperties();
-#         for (auto& itp : properties) {
-#             auto name = itp.first;
-#             auto property = itp.second;
-
-#             if (material->getPhysicalProperty(name)->isNull()) {
-#                 material->getPhysicalProperty(name)->setValue(property->getValue());
-#             }
-#         }
-
-#         properties = parent->getAppearanceProperties();
-#         for (auto& itp : properties) {
-#             auto name = itp.first;
-#             auto property = itp.second;
-
-#             if (material->getAppearanceProperty(name)->isNull()) {
-#                 material->getAppearanceProperty(name)->setValue(property->getValue());
-#             }
-#         }
-#     }
-
-#     material->markDereferenced();
-# }

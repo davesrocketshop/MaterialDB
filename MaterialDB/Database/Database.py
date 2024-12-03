@@ -64,7 +64,7 @@ class Database:
             connectString = ""
             currentDriver = FreeCAD.ParamGet(prefs).GetString("Driver", "")
             if currentDriver:
-                  connectString = connectString + "Driver={}".format(currentDriver)
+                  connectString = connectString + "Driver={%s}" % (currentDriver)
             currentDSN = FreeCAD.ParamGet(prefs).GetString("DSN", "")
             if currentDSN:
                 if connectString:

@@ -56,8 +56,8 @@ class MaterialsDBManager(MaterialManagerExternal):
     def renameLibrary(self, oldName: str, newName: str) -> None:
         print("renameLibrary('{}', '{}')".format(oldName, newName))
 
-    def changeIcon(self, icon: str) -> None:
-        print("changeIcon('{}')".format(icon))
+    def changeIcon(self, name: str, icon: str) -> None:
+        print("changeIcon('{}', '{}')".format(name, icon))
 
     def removeLibrary(self, library: str) -> None:
         print("removeLibrary('{}')".format(library))
