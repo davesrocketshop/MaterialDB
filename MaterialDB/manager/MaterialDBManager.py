@@ -95,6 +95,7 @@ class MaterialsDBManager(MaterialManagerExternal):
 
     def updateModel(self, library: str, path: str, model: Materials.Model) -> None:
         print("updateModel('{}', '{}', '{}')".format(library, path, model.Name))
+        self._db.updateModel(library, path, model)
 
     def setModelPath(self, library: str, path: str, model: Materials.Model) -> None:
         print("setModelPath('{}', '{}', '{}')".format(library, path, model.Name))

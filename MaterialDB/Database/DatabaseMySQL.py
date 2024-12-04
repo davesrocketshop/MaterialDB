@@ -27,6 +27,7 @@ from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
     DatabaseIconError, \
     DatabaseModelCreationError, DatabaseMaterialCreationError, \
+    DatabaseModelUpdateError, \
     DatabaseModelExistsError, DatabaseMaterialExistsError, \
     DatabaseModelNotFound, DatabaseMaterialNotFound, \
     DatabaseRenameError, DatabaseDeleteError
@@ -239,6 +240,33 @@ class DatabaseMySQL(Database):
                 self._createModelPropertyColumn(propertyId, column)
         self._connection.commit()
 
+    def _updateModelProperty(self, modelUUID, property):
+        if property.Inherited:
+            return
+
+        cursor = self._cursor()
+        cursor.execute("SELECT model_property_id FROM model_property WHERE model_id "
+                                "= ? AND model_property_name = ?", modelUUID, property.Name)
+        row = cursor.fetchone()
+        if not row:
+            cursor.execute("INSERT INTO model_property (model_id, model_property_name, "
+                                    "model_property_display_name, model_property_type, "
+                                    "model_property_units, model_property_url, "
+                                    "model_property_description) "
+                                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                modelUUID,
+                property.Name,
+                property.DisplayName,
+                property.Type,
+                property.Units,
+                property.URL,
+                property.Description
+                )
+            propertyId = self._lastId(cursor)
+            for column in property.Columns:
+                self._createModelPropertyColumn(propertyId, column)
+        self._connection.commit()
+
     def _createModel(self, libraryIndex, path, model):
         cursor = self._cursor()
         pathIndex = self._createPath(libraryIndex, path)
@@ -279,6 +307,62 @@ class DatabaseMySQL(Database):
             # print("Exception '{}'".format(type(ex).__name__))
             print("Unable to create model:", ex)
             raise DatabaseModelCreationError(ex)
+
+    def _updateModel(self, libraryIndex, path, model):
+        cursor = self._cursor()
+        pathIndex = self._createPath(libraryIndex, path)
+        cursor.execute("SELECT model_id FROM model WHERE model_id = ?", model.UUID)
+        row = cursor.fetchone()
+        if not row:
+            raise DatabaseModelNotFound()
+        else:
+            cursor.execute("UPDATE model SET "
+                           "  folder_id = ?,"
+                           "  model_name = ?,"
+                           "  model_type = ?,"
+                           "  model_url = ?,"
+                           "  model_description = ?,"
+                           "  model_doi = ?"
+                           " WHERE model_id = ?",
+                        (None if pathIndex == 0 else pathIndex),
+                        model.Name,
+                        model.Type,
+                        model.URL,
+                        model.Description,
+                        model.DOI,
+                        model.UUID
+                        )
+
+            # Do these deletes need to be smarter due to foreing key constraints?
+            cursor.execute("DELETE FROM model_inheritance WHERE model_id = ?", model.UUID)
+            for inherit in model.Inherited:
+                self._createInheritance(model.UUID, inherit)
+
+            cursor.execute("SELECT model_property_id, model_property_name FROM model_property WHERE model_id = ?", model.UUID)
+            rows = cursor.fetchall()
+            property_ids = []
+            for row in rows:
+                if not row.model_property_name in model.Properties.keys():
+                    # Remove the property
+                    property_ids.append(row.model_property_id)
+            for property_id in property_ids:
+                cursor.execute("DELETE FROM model_property WHERE model_property_id = ?", property_id)
+
+            for property in model.Properties.values():
+                self._updateModelProperty(model.UUID, property)
+        self._connection.commit()
+
+    def updateModel(self, libraryName, path, model):
+        try:
+            libraryIndex = self._findLibrary(libraryName)
+            if libraryIndex > 0:
+                self._updateModel(libraryIndex, path, model)
+        except DatabaseModelNotFound as exists:
+            # Rethrow
+            raise exists
+        except Exception as ex:
+            print("Unable to update model:", ex)
+            raise DatabaseModelUpdateError(ex)
 
     def _createTag(self, materialUUID, tag):
         tagId = 0

@@ -73,6 +73,11 @@ class DatabaseModelCreationError(Exception):
     def __init__(self, error):
         self._error = error
 
+class DatabaseModelUpdateError(Exception):
+
+    def __init__(self, error):
+        self._error = error
+
 class DatabaseModelExistsError(Exception):
 
     def __init__(self, error=None):
