@@ -69,7 +69,9 @@ class MaterialsDBManager(MaterialManagerExternal):
         print("libraryModels('{}')".format(library))
         return self._db.libraryModels(library)
 
-    def libraryMaterials(self, library: str) -> list:
+    def libraryMaterials(self, library: str,
+                         filter: Materials.MaterialFilter = None,
+                         options: Materials.MaterialFilterOptions = None) -> list:
         print("libraryMaterials('{}')".format(library))
         return self._db.libraryMaterials(library)
 
