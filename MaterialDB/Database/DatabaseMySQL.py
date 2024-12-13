@@ -108,10 +108,16 @@ class DatabaseMySQL(Database):
         try:
             models = []
             cursor = self._cursor()
-            cursor.execute("SELECT m.model_id FROM model m, library l WHERE m.library_id = l.library_id AND l.library_name = ?", library)
+            cursor.execute("SELECT m.model_id, m.folder_id, m.model_name"
+                           " FROM model m, library l"
+                           " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
             rows = cursor.fetchall()
             for row in rows:
-                models.append(row.model_id)
+                models.append((row.model_id, row.folder_id, row.model_name))
+
+            for model in models:
+                # Convert the folder_id to a path
+                model[1] = self._getPath(model[1])
 
             return models
         except Exception as ex:
@@ -122,10 +128,16 @@ class DatabaseMySQL(Database):
         try:
             materials = []
             cursor = self._cursor()
-            cursor.execute("SELECT m.material_id FROM material m, library l WHERE m.library_id = l.library_id AND l.library_name = ?", library)
+            cursor.execute("SELECT m.material_id m.folder_id, m.material_name"
+                           " FROM material m, library l"
+                           " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
             rows = cursor.fetchall()
             for row in rows:
-                materials.append(row.material_id)
+                materials.append((row.material_id, row.folder_id, row.material_name))
+
+            for material in materials:
+                # Convert the folder_id to a path
+                material[1] = self._getPath(material[1])
 
             return materials
         except Exception as ex:
