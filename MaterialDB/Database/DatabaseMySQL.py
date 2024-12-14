@@ -115,11 +115,12 @@ class DatabaseMySQL(Database):
             for row in rows:
                 models.append((row.model_id, row.folder_id, row.model_name))
 
+            pathModels = []
             for model in models:
                 # Convert the folder_id to a path
-                model[1] = self._getPath(model[1])
+                pathModels.append((model[0], self._getPath(model[1]), model[2]))
 
-            return models
+            return pathModels
         except Exception as ex:
             print("Unable to get library models:", ex)
             raise DatabaseModelNotFound(ex)
@@ -128,18 +129,19 @@ class DatabaseMySQL(Database):
         try:
             materials = []
             cursor = self._cursor()
-            cursor.execute("SELECT m.material_id m.folder_id, m.material_name"
+            cursor.execute("SELECT m.material_id, m.folder_id, m.material_name"
                            " FROM material m, library l"
                            " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
             rows = cursor.fetchall()
             for row in rows:
                 materials.append((row.material_id, row.folder_id, row.material_name))
 
+            pathMaterials = []
             for material in materials:
                 # Convert the folder_id to a path
-                material[1] = self._getPath(material[1])
+                pathMaterials.append((material[0], self._getPath(material[1]), material[2]))
 
-            return materials
+            return pathMaterials
         except Exception as ex:
             print("Unable to get library materials:", ex)
             raise DatabaseModelNotFound(ex)
