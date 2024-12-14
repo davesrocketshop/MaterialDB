@@ -22,21 +22,33 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import unittest
+import pyodbc
 
-from MaterialDB.Database.DatabaseMySQLTest import DatabaseMySQLTest
-from MaterialDB.util.UIPath import getUIPath
+import Materials
+from MaterialDB.Database.DatabaseMySQLCreate import DatabaseMySQLCreate
+from MaterialDB.Database.Exceptions import DatabaseConnectionError
+from MaterialDB.Configuration import getPreferencesLocation
 
-class MySQLTests(unittest.TestCase):
+class DatabaseMySQLTest(DatabaseMySQLCreate):
 
-    def setUp(self):
-        self._db = DatabaseMySQLTest()
-        self._db.createTables()
+    def __init__(self):
+        super().__init__()
 
-    def tearDown(self):
-        self._db.dropTables()
+    def _connect(self, noDatabase=False):
+        if self._connection is None:
+            self._connectODBCTest()
 
-    def testConnection(self):
-        # self.assertIsNone(self._db._connection)
-        self._db._connect()
-        self.assertIsNotNone(self._db._connection)
+    def _connectODBCTest(self):
+        """ Testing requires a DSN called material-test be defined with all the necessary connection paramters """
+        try:
+            connectString = 'DSN=material-test;charset=utf8mb4'
+            print(connectString)
+
+            self._connection = pyodbc.connect(connectString)
+            self._connection.setdecoding(pyodbc.SQL_CHAR, encoding='utf-8')
+            self._connection.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
+            self._connection.setencoding(encoding='utf-8')
+        except Exception as ex:
+            print("Unable to create connection:", ex)
+            self._connection = None
+            raise DatabaseConnectionError(ex)

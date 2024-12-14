@@ -25,7 +25,7 @@ __url__ = "https://www.davesrocketshop.com"
 import Materials
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
-    DatabaseIconError, \
+    DatabaseIconError, DatabaseLibraryNotFound, \
     DatabaseModelCreationError, DatabaseMaterialCreationError, \
     DatabaseModelUpdateError, \
     DatabaseModelExistsError, DatabaseMaterialExistsError, \
@@ -60,6 +60,8 @@ class DatabaseMySQL(Database):
                     cursor.execute("INSERT INTO library (library_name, library_icon, library_read_only) "
                             "VALUES (?, ?, ?)", name, icon, readOnly)
                 self._connection.commit()
+            else:
+                raise DatabaseLibraryCreationError("Library already exists")
         except Exception as ex:
             print("Unable to create library:", ex)
             raise DatabaseLibraryCreationError(ex)
@@ -108,6 +110,12 @@ class DatabaseMySQL(Database):
         try:
             models = []
             cursor = self._cursor()
+
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", library)
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseLibraryNotFound()
+
             cursor.execute("SELECT m.model_id, m.folder_id, m.model_name"
                            " FROM model m, library l"
                            " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
@@ -129,6 +137,12 @@ class DatabaseMySQL(Database):
         try:
             materials = []
             cursor = self._cursor()
+
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", library)
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseLibraryNotFound()
+
             cursor.execute("SELECT m.material_id, m.folder_id, m.material_name"
                            " FROM material m, library l"
                            " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
@@ -871,7 +885,7 @@ class DatabaseMySQL(Database):
         if not row:
             return None
         # Columns must be set first so rows can be created
-        print("rows {}, columns {}".format(row.material_property_array_rows, row.material_property_array_columns))
+        # print("rows {}, columns {}".format(row.material_property_array_rows, row.material_property_array_columns))
         array.Columns = row.material_property_array_columns
         array.Rows = row.material_property_array_rows
 

@@ -38,41 +38,41 @@ class MaterialsDBManager(MaterialManagerExternal):
         self._db = DatabaseMySQL()
 
     def libraries(self) -> list:
-        print("libraries()")
+        # print("libraries()")
         return self._db.getLibraries()
 
     def modelLibraries(self) -> list:
-        print("modelLibraries()")
+        # print("modelLibraries()")
         return self._db.getModelLibraries()
 
     def materialLibraries(self) -> list:
-        print("materialLibraries()")
+        # print("materialLibraries()")
         return self._db.getMaterialLibraries()
 
     def createLibrary(self, name: str, icon: str, readOnly: bool) -> None:
-        print("createLibrary('{}', '{}', '{}')".format(name, icon, readOnly))
+        # print("createLibrary('{}', '{}', '{}')".format(name, icon, readOnly))
         self._db.createLibrary(name, icon, readOnly)
 
     def renameLibrary(self, oldName: str, newName: str) -> None:
-        print("renameLibrary('{}', '{}')".format(oldName, newName))
+        # print("renameLibrary('{}', '{}')".format(oldName, newName))
         self._db.renameLibrary(oldName, newName)
 
     def changeIcon(self, name: str, icon: str) -> None:
-        print("changeIcon('{}', '{}')".format(name, icon))
+        # print("changeIcon('{}', '{}')".format(name, icon))
         self._db.changeIcon(name, icon)
 
     def removeLibrary(self, library: str) -> None:
-        print("removeLibrary('{}')".format(library))
+        # print("removeLibrary('{}')".format(library))
         self._db.removeLibrary(library)
 
     def libraryModels(self, library: str) -> list:
-        print("libraryModels('{}')".format(library))
+        # print("libraryModels('{}')".format(library))
         return self._db.libraryModels(library)
 
     def libraryMaterials(self, library: str,
                          filter: Materials.MaterialFilter = None,
                          options: Materials.MaterialFilterOptions = None) -> list:
-        print("libraryMaterials('{}')".format(library))
+        # print("libraryMaterials('{}')".format(library))
         return self._db.libraryMaterials(library)
 
     #
@@ -80,15 +80,15 @@ class MaterialsDBManager(MaterialManagerExternal):
     #
 
     def getModel(self, uuid: str) -> Materials.Model:
-        print("getModel('{}')".format(uuid))
+        # print("getModel('{}')".format(uuid))
         return self._db.getModel(uuid)
 
     def addModel(self, library: str, path: str, model: Materials.Model) -> None:
-        print("addModel('{}', '{}', '{}')".format(library, path, model.Name))
+        # print("addModel('{}', '{}', '{}')".format(library, path, model.Name))
         self._db.createModel(library, path, model)
 
     def migrateModel(self, library: str, path: str, model: Materials.Model) -> None:
-        print("migrateModel('{}', '{}', '{}')".format(library, path, model.Name))
+        # print("migrateModel('{}', '{}', '{}')".format(library, path, model.Name))
         try:
             self._db.createModel(library, path, model)
         except DatabaseModelExistsError:
@@ -96,7 +96,7 @@ class MaterialsDBManager(MaterialManagerExternal):
             pass
 
     def updateModel(self, library: str, path: str, model: Materials.Model) -> None:
-        print("updateModel('{}', '{}', '{}')".format(library, path, model.Name))
+        # print("updateModel('{}', '{}', '{}')".format(library, path, model.Name))
         self._db.updateModel(library, path, model)
 
     def setModelPath(self, library: str, path: str, model: Materials.Model) -> None:
@@ -116,15 +116,15 @@ class MaterialsDBManager(MaterialManagerExternal):
     #
 
     def getMaterial(self, uuid: str) -> Materials.Material:
-        print("getMaterial('{}')".format(uuid))
+        # print("getMaterial('{}')".format(uuid))
         return self._db.getMaterial(uuid)
 
     def addMaterial(self, library: str, path: str, material: Materials.Material) -> None:
-        print("addMaterial('{}', '{}', '{}')".format(library, path, material.Name))
+        # print("addMaterial('{}', '{}', '{}')".format(library, path, material.Name))
         self._db.createMaterial(library, path, material)
 
     def migrateMaterial(self, library: str, path: str, material: Materials.Material) -> None:
-        print("migrateMaterial('{}', '{}', '{}')".format(library, path, material.Name))
+        # print("migrateMaterial('{}', '{}', '{}')".format(library, path, material.Name))
         try:
             self._db.createMaterial(library, path, material)
         except DatabaseMaterialExistsError:
