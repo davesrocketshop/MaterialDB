@@ -22,6 +22,8 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
+from functools import cache
+
 import Materials
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
@@ -133,6 +135,7 @@ class DatabaseMySQL(Database):
             print("Unable to get library models:", ex)
             raise DatabaseModelNotFound(ex)
 
+    @cache
     def libraryMaterials(self, library):
         try:
             materials = []
@@ -668,15 +671,37 @@ class DatabaseMySQL(Database):
     def _getPath(self, folderId):
         path = ""
         cursor = self._cursor()
-        cursor.execute("SELECT folder_name, parent_id FROM folder WHERE folder_id = ?",
+        cursor.execute("""WITH RECURSIVE subordinate AS (
+                        SELECT
+                            folder_id,
+                            folder_name,
+                            parent_id
+                        FROM folder
+                        WHERE folder_id = ?
+
+                        UNION ALL
+
+                        SELECT
+                            e.folder_id,
+                            e.folder_name,
+                            e.parent_id
+                        FROM folder e
+                        JOIN subordinate s
+                        ON e.folder_id = s.parent_id
+                        )
+                        SELECT
+                            folder_name
+                        FROM subordinate
+                        ORDER BY folder_id ASC;""",
                        folderId)
-        row = cursor.fetchone()
-        if row:
-            folderName = row.folder_name
-            if row.parent_id is None:
-                path = folderName
+        rows = cursor.fetchall()
+        first = True
+        for row in rows:
+            if first:
+                path = row.folder_name
+                first = False
             else:
-                path = self._getPath(row.parent_id) + '/' + folderName
+                path += "/" + row.folder_name
         return path
 
     def _getInherits(self, uuid):
