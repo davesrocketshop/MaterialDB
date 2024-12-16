@@ -198,6 +198,37 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             ON DELETE CASCADE
                     )"""
         }
+        self._functions = {
+            "GetFolder" : """CREATE FUNCTION GetFolder(id INTEGER)
+                        RETURNS VARCHAR(1024) DETERMINISTIC
+                    BEGIN
+                        DECLARE folderName VARCHAR(1024);
+                        WITH RECURSIVE subordinate AS (
+                        SELECT
+                            folder_id,
+                            folder_name,
+                            parent_id
+                        FROM folder
+                        WHERE folder_id = id
+
+                        UNION ALL
+
+                        SELECT
+                            e.folder_id,
+                            e.folder_name,
+                            e.parent_id
+                        FROM folder e
+                        JOIN subordinate s
+                        ON e.folder_id = s.parent_id
+                        )
+                        SELECT
+                            group_concat(folder_name SEPARATOR '/')
+                        FROM subordinate
+                        ORDER BY folder_id ASC
+                        INTO folderName;
+                        RETURN folderName;
+                    END"""
+        }
 
     def checkIfExists(self):
         try:
@@ -232,6 +263,27 @@ class DatabaseMySQLCreate(DatabaseMySQL):
 
             for table in self._tables:
                 cursor.execute(self._tables[table])
+            cursor.commit()
+        except Exception as err:
+            raise DatabaseTableCreationError(err)
+
+    def dropFunctions(self):
+        try:
+            cursor = self._cursor()
+
+            for function in self._functions:
+                cursor.execute("DROP FUNCTION IF EXISTS {}".format(function))
+
+            cursor.commit()
+        except Exception as err:
+            print(err)
+
+    def createFunctions(self):
+        try:
+            cursor = self._cursor()
+
+            for function in self._functions:
+                cursor.execute(self._functions[function])
             cursor.commit()
         except Exception as err:
             raise DatabaseTableCreationError(err)

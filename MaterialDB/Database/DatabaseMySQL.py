@@ -135,7 +135,7 @@ class DatabaseMySQL(Database):
             print("Unable to get library models:", ex)
             raise DatabaseModelNotFound(ex)
 
-    @cache
+    # @cache
     def libraryMaterials(self, library):
         try:
             materials = []
@@ -146,22 +146,17 @@ class DatabaseMySQL(Database):
             if not row:
                 raise DatabaseLibraryNotFound()
 
-            cursor.execute("SELECT m.material_id, m.folder_id, m.material_name"
+            cursor.execute("SELECT m.material_id, GetFolder(m.folder_id) as folder_name, m.material_name"
                            " FROM material m, library l"
                            " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
             rows = cursor.fetchall()
             for row in rows:
-                materials.append((row.material_id, row.folder_id, row.material_name))
+                materials.append((row.material_id, row.folder_name, row.material_name))
 
-            pathMaterials = []
-            for material in materials:
-                # Convert the folder_id to a path
-                pathMaterials.append((material[0], self._getPath(material[1]), material[2]))
-
-            return pathMaterials
+            return materials
         except Exception as ex:
             print("Unable to get library materials:", ex)
-            raise DatabaseModelNotFound(ex)
+            raise DatabaseMaterialNotFound(ex)
 
     def _createPathRecursive(self, libraryIndex, parentIndex, pathIndex, pathList):
         newId = 0

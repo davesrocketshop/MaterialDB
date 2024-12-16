@@ -195,5 +195,38 @@ CREATE TABLE material_property_array_value (
 		ON DELETE CASCADE
 );
 
+DELIMITER //
+DROP FUNCTION IF EXISTS GetFolder//
+CREATE FUNCTION GetFolder(id INTEGER)
+	RETURNS VARCHAR(1024) DETERMINISTIC
+BEGIN
+	DECLARE folderName VARCHAR(1024);
+    WITH RECURSIVE subordinate AS (
+	 SELECT
+		folder_id,
+		folder_name,
+		parent_id
+	  FROM folder
+	  WHERE folder_id = id
+
+	  UNION ALL
+
+	  SELECT
+		e.folder_id,
+		e.folder_name,
+		e.parent_id
+	  FROM folder e
+	  JOIN subordinate s
+	  ON e.folder_id = s.parent_id
+	)
+	SELECT
+		group_concat(folder_name SEPARATOR '/')
+	FROM subordinate
+	ORDER BY folder_id ASC
+	INTO folderName;
+	RETURN folderName;
+END//
+DELIMITER ;
+
 -- Restore foreign key checks
 SET FOREIGN_KEY_CHECKS=1;
