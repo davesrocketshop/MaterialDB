@@ -61,6 +61,17 @@ class DatabaseIconError(Exception):
         return repr(self.msg)
 
 
+class DatabaseLibraryNotFound(Exception):
+
+    def __init__(self, msg="Library not found", error=None):
+        self._error = error
+        self.msg = msg
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
+
 #---
 #
 # Model errors

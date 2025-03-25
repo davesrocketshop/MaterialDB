@@ -22,10 +22,12 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
+from functools import cache
+
 import Materials
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
-    DatabaseIconError, \
+    DatabaseIconError, DatabaseLibraryNotFound, \
     DatabaseModelCreationError, DatabaseMaterialCreationError, \
     DatabaseModelUpdateError, \
     DatabaseModelExistsError, DatabaseMaterialExistsError, \
@@ -60,6 +62,8 @@ class DatabaseMySQL(Database):
                     cursor.execute("INSERT INTO library (library_name, library_icon, library_read_only) "
                             "VALUES (?, ?, ?)", name, icon, readOnly)
                 self._connection.commit()
+            else:
+                raise DatabaseLibraryCreationError("Library already exists")
         except Exception as ex:
             print("Unable to create library:", ex)
             raise DatabaseLibraryCreationError(ex)
@@ -108,29 +112,51 @@ class DatabaseMySQL(Database):
         try:
             models = []
             cursor = self._cursor()
-            cursor.execute("SELECT m.model_id FROM model m, library l WHERE m.library_id = l.library_id AND l.library_name = ?", library)
+
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", library)
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseLibraryNotFound()
+
+            cursor.execute("SELECT m.model_id, m.folder_id, m.model_name"
+                           " FROM model m, library l"
+                           " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
             rows = cursor.fetchall()
             for row in rows:
-                models.append(row.model_id)
+                models.append((row.model_id, row.folder_id, row.model_name))
 
-            return models
+            pathModels = []
+            for model in models:
+                # Convert the folder_id to a path
+                pathModels.append((model[0], self._getPath(model[1]), model[2]))
+
+            return pathModels
         except Exception as ex:
             print("Unable to get library models:", ex)
             raise DatabaseModelNotFound(ex)
 
+    # @cache
     def libraryMaterials(self, library):
         try:
             materials = []
             cursor = self._cursor()
-            cursor.execute("SELECT m.material_id FROM material m, library l WHERE m.library_id = l.library_id AND l.library_name = ?", library)
+
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", library)
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseLibraryNotFound()
+
+            cursor.execute("SELECT m.material_id, GetFolder(m.folder_id) as folder_name, m.material_name"
+                           " FROM material m, library l"
+                           " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
             rows = cursor.fetchall()
             for row in rows:
-                materials.append(row.material_id)
+                materials.append((row.material_id, row.folder_name, row.material_name))
 
             return materials
         except Exception as ex:
             print("Unable to get library materials:", ex)
-            raise DatabaseModelNotFound(ex)
+            raise DatabaseMaterialNotFound(ex)
 
     def _createPathRecursive(self, libraryIndex, parentIndex, pathIndex, pathList):
         newId = 0
@@ -161,15 +187,15 @@ class DatabaseMySQL(Database):
                 newId = self._lastId(cursor)
 
         self._connection.commit()
-        index = parentIndex + 1
-        if index >= (len(pathList) - 1):
+        index = pathIndex + 1
+        if index >= len(pathList):
             return newId
         return self._createPathRecursive(libraryIndex, newId, index, pathList)
 
     def _createPath(self, libraryIndex, path):
         newId = 0
         pathList = path.split('/')
-        if len(pathList) >= 2:
+        if len(pathList) > 0:
             return self._createPathRecursive(libraryIndex, 0, 0, pathList)
         return newId
 
@@ -385,7 +411,6 @@ class DatabaseMySQL(Database):
         self._connection.commit()
 
     def _createMaterialModel(self, materialUUID, modelUUID):
-        print("_createMaterialModel({}, {})".format(materialUUID, modelUUID))
         cursor = self._cursor()
         cursor.execute("SELECT material_id FROM material_models WHERE material_id = ? AND model_id = ?",
                        materialUUID, modelUUID)
@@ -393,36 +418,147 @@ class DatabaseMySQL(Database):
         if not row:
             cursor.execute("INSERT INTO material_models (material_id, model_id) "
                                     "VALUES (?, ?)", materialUUID, modelUUID)
-            print("Created")
-        else:
-            print("Exists")
         self._connection.commit()
 
-    def _createStringValue(self, materialUUID, name, value):
+    def _createMaterialPropertyValue(self, materialUUID, name, type):
+        cursor = self._cursor()
+        cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, material_property_type) "
+                    "VALUES (?, ?, ?)",
+                    materialUUID, name, type)
+
+        return self._lastId(cursor)
+
+    def _createStringValue(self, materialUUID, name, type, value):
         if value is not None:
+            value_id = self._createMaterialPropertyValue(materialUUID, name, type)
             cursor = self._cursor()
-            cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, "
-                        "material_property_value) "
-                        "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE material_property_value = ?",
-                        materialUUID, name, value, value)
+
+            cursor.execute("INSERT INTO material_property_string_value "
+                        " (material_property_value_id, material_property_value)"
+                        " VALUES (?, ?)",
+                        value_id, value)
             self._connection.commit()
 
-    def _createMaterialProperty(self, materialUUID, property):
-        if property.Type == "List" or \
-           property.Type == "Array2D" or \
-           property.Type == "Array3D" or \
-           property.Type == "Image" or \
-           property.Type == "File" or \
-           property.Type == "FileList" or \
-           property.Type == "ImageList" or \
-           property.Type == "SVG":
-            pass
+    def _createLongStringValue(self, materialUUID, name, type, value):
+        if value is not None:
+            value_id = self._createMaterialPropertyValue(materialUUID, name, type)
+            cursor = self._cursor()
+
+            cursor.execute("INSERT INTO material_property_long_string_value "
+                        " (material_property_value_id, material_property_value)"
+                        " VALUES (?, ?)",
+                        value_id, value)
+            self._connection.commit()
+
+    def _createListValue(self, materialUUID, name, type, list):
+        if list is not None:
+            value_id = self._createMaterialPropertyValue(materialUUID, name, type)
+            cursor = self._cursor()
+
+            for entry in list:
+                cursor.execute("INSERT INTO material_property_string_value "
+                            " (material_property_value_id, material_property_value)"
+                            " VALUES (?, ?)",
+                            value_id, entry)
+
+            self._connection.commit()
+
+    def _createLongListValue(self, materialUUID, name, type, list):
+        if list is not None:
+            value_id = self._createMaterialPropertyValue(materialUUID, name, type)
+            cursor = self._cursor()
+
+            for entry in list:
+                cursor.execute("INSERT INTO material_property_long_string_value "
+                            " (material_property_value_id, material_property_value)"
+                            " VALUES (?, ?)",
+                            value_id, entry)
+
+            self._connection.commit()
+
+    def _createArrayValue3D(self, materialUUID, name, propertyType, array):
+        if array is not None:
+            value_id = self._createMaterialPropertyValue(materialUUID, name, propertyType)
+            cursor = self._cursor()
+
+            rows = 0
+            for depth in range(array.Depth):
+                rows = max(rows, array.getRows(depth))
+            cursor.execute("INSERT INTO material_property_array_description "
+                        " (material_property_value_id, material_property_array_rows, "
+                        "  material_property_array_columns, material_property_array_depth)"
+                        " VALUES (?, ?, ?, ?)",
+                        value_id, rows, array.Columns, array.Depth)
+
+            arrayData = array.Array
+            for depth, depthValue in enumerate(arrayData):
+                cursor.execute("INSERT INTO material_property_string_value "
+                        " (material_property_value_id, material_property_value)"
+                        " VALUES (?, ?)",
+                        value_id, array.getDepthValue(depth).UserString)
+            for depth, depthValue in enumerate(arrayData):
+                for row, rowValue in enumerate(depthValue):
+                    for column, columnValue in enumerate(rowValue):
+                        value = columnValue.UserString
+                        cursor.execute("INSERT INTO material_property_array_value "
+                                    " (material_property_value_id, material_property_value_row, "
+                                    "  material_property_value_column, material_property_value_depth, "
+                                    "  material_property_value_depth_rows, material_property_value)"
+                                    " VALUES (?, ?, ?, ?, ?, ?)",
+                                    value_id, row, column, depth, array.getRows(depth), value)
+
+            self._connection.commit()
+
+    def _createArrayValue2D(self, materialUUID, name, propertyType, array):
+        if array is not None:
+            value_id = self._createMaterialPropertyValue(materialUUID, name, propertyType)
+            cursor = self._cursor()
+
+            cursor.execute("INSERT INTO material_property_array_description "
+                        " (material_property_value_id, material_property_array_rows, "
+                        "  material_property_array_columns)"
+                        " VALUES (?, ?, ?)",
+                        value_id, array.Rows, array.Columns)
+            arrayData = array.Array
+            for row, rowValue in enumerate(arrayData):
+                for column, columnValue in enumerate(rowValue):
+                    if hasattr(columnValue, "UserString"):
+                        value = columnValue.UserString
+                    else:
+                        value = columnValue
+                    cursor.execute("INSERT INTO material_property_array_value "
+                                " (material_property_value_id, material_property_value_row, "
+                                "  material_property_value_column, material_property_value)"
+                                " VALUES (?, ?, ?, ?)",
+                                value_id, row, column, value)
+
+            self._connection.commit()
+
+    def _createMaterialProperty(self, materialUUID, material, property):
+        if property.Type == "2DArray" or \
+           property.Type == "3DArray":
+            if material.hasPhysicalProperty(property.Name):
+                array = material.getPhysicalValue(property.Name)
+            else:
+                array = material.getAppearanceValue(property.Name)
+            if array.Dimensions == 2:
+                self._createArrayValue2D(materialUUID, property.Name, property.Type, array)
+            else:
+                self._createArrayValue3D(materialUUID, property.Name, property.Type, array)
+        elif property.Type == "List" or \
+           property.Type == "FileList":
+            self._createListValue(materialUUID, property.Name, property.Type, property.Value)
+        elif property.Type == "ImageList":
+            self._createLongListValue(materialUUID, property.Name, property.Type, property.Value)
         elif property.Type == "Quantity":
             if property.Empty:
                 return
-            self._createStringValue(materialUUID, property.Name, property.Value.UserString)
+            self._createStringValue(materialUUID, property.Name, property.Type, property.Value.UserString)
+        elif property.Type == "SVG" or \
+            property.Type == "Image":
+            self._createLongStringValue(materialUUID, property.Name, property.Type, property.Value)
         else:
-            self._createStringValue(materialUUID, property.Name, property.Value)
+            self._createStringValue(materialUUID, property.Name, property.Type, property.Value)
 
     def _createMaterial(self, libraryIndex, path, material):
         pathIndex = self._createPath(libraryIndex, path)
@@ -458,17 +594,17 @@ class DatabaseMySQL(Database):
             for tag in material.Tags:
                 self._createTag(material.UUID, tag)
 
-            print("{} Physical models".format(len(material.PhysicalModels)))
+            # print("{} Physical models".format(len(material.PhysicalModels)))
             for model in material.PhysicalModels:
                 self._createMaterialModel(material.UUID, model)
 
-            print("{} Appearance models".format(len(material.AppearanceModels)))
+            # print("{} Appearance models".format(len(material.AppearanceModels)))
             for model in material.AppearanceModels:
                 self._createMaterialModel(material.UUID, model)
 
-            print("{} Properties".format(len(material.PropertyObjects)))
+            # print("{} Properties".format(len(material.PropertyObjects)))
             for property in material.PropertyObjects.values():
-                self._createMaterialProperty(material.UUID, property)
+                self._createMaterialProperty(material.UUID, material, property)
 
         self._connection.commit()
 
@@ -527,29 +663,40 @@ class DatabaseMySQL(Database):
             return (row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only)
         return None
 
-    def _getMaterialLibrary(self, libraryId):
-        cursor = self._cursor()
-        # Need to add logic to ensure there's a material in there?
-        cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
-                                    "library WHERE library_id = ?",
-                       libraryId)
-        row = cursor.fetchone()
-        if row:
-            # This needs to be a library object
-            return Materials.MaterialLibrary(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only)
-        return None
-
     def _getPath(self, folderId):
         path = ""
         cursor = self._cursor()
-        cursor.execute("SELECT folder_name, parent_id FROM folder WHERE folder_id = ?",
+        cursor.execute("""WITH RECURSIVE subordinate AS (
+                        SELECT
+                            folder_id,
+                            folder_name,
+                            parent_id
+                        FROM folder
+                        WHERE folder_id = ?
+
+                        UNION ALL
+
+                        SELECT
+                            e.folder_id,
+                            e.folder_name,
+                            e.parent_id
+                        FROM folder e
+                        JOIN subordinate s
+                        ON e.folder_id = s.parent_id
+                        )
+                        SELECT
+                            folder_name
+                        FROM subordinate
+                        ORDER BY folder_id ASC;""",
                        folderId)
-        row = cursor.fetchone()
-        if row:
-            if row.parent_id is None:
+        rows = cursor.fetchall()
+        first = True
+        for row in rows:
+            if first:
                 path = row.folder_name
+                first = False
             else:
-                path = self._getPath(row.parent_id) + '/' + path
+                path += "/" + row.folder_name
         return path
 
     def _getInherits(self, uuid):
@@ -647,7 +794,7 @@ class DatabaseMySQL(Database):
             # model.Library = self._getLibrary(row.library_id)
             library = self._getLibrary(row.library_id)
 
-            path = self._getPath(row.folder_id) + "/" + row.model_name
+            path = self._getPath(row.folder_id) #+ "/" + row.model_name
             model.Directory = path
 
             inherits = self._getInherits(uuid)
@@ -694,17 +841,160 @@ class DatabaseMySQL(Database):
 
         return models
 
-    def _getMaterialProperties(self, uuid):
-        properties = {}
+    def _getMaterialPropertyStringValue(self, materialPropertyValueId):
         cursor = self._cursor()
-        cursor.execute("SELECT material_property_name, "
-                                    "material_property_value FROM material_property_value "
-                                    "WHERE material_id = ?",
-                       uuid)
+        cursor.execute("SELECT material_property_value "
+                        "FROM material_property_string_value "
+                        "WHERE material_property_value_id = ?",
+                       materialPropertyValueId)
+        row = cursor.fetchone()
+        if not row:
+            return None
 
+        return row.material_property_value
+
+    def _getMaterialPropertyLongStringValue(self, materialPropertyValueId):
+        cursor = self._cursor()
+        cursor.execute("SELECT material_property_value "
+                        "FROM material_property_long_string_value "
+                        "WHERE material_property_value_id = ?",
+                       materialPropertyValueId)
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        return row.material_property_value
+
+    def _getMaterialPropertyListValue(self, materialPropertyValueId):
+        cursor = self._cursor()
+        cursor.execute("SELECT material_property_value "
+                        "FROM material_property_string_value "
+                        "WHERE material_property_value_id = ? "
+                        "ORDER BY material_property_value_id ASC",
+                       materialPropertyValueId)
+        rows = cursor.fetchall()
+        list = []
+        for row in rows:
+            list.append(row.material_property_value)
+
+        return list
+
+    def _getMaterialPropertyLongListValue(self, materialPropertyValueId):
+        cursor = self._cursor()
+        cursor.execute("SELECT material_property_value "
+                        "FROM material_property_long_string_value "
+                        "WHERE material_property_value_id = ? "
+                        "ORDER BY material_property_value_id ASC",
+                       materialPropertyValueId)
+        rows = cursor.fetchall()
+        list = []
+        for row in rows:
+            list.append(row.material_property_value)
+
+        return list
+
+    def _getMaterialPropertyArray2D(self, materialPropertyValueId):
+        cursor = self._cursor()
+        array=Materials.Array2D()
+
+        cursor.execute("SELECT material_property_array_rows, material_property_array_columns "
+                        "FROM material_property_array_description "
+                        "WHERE material_property_value_id = ?",
+                       materialPropertyValueId)
+        row = cursor.fetchone()
+        if not row:
+            return None
+        # Columns must be set first so rows can be created
+        # print("rows {}, columns {}".format(row.material_property_array_rows, row.material_property_array_columns))
+        array.Columns = row.material_property_array_columns
+        array.Rows = row.material_property_array_rows
+
+        cursor.execute("SELECT material_property_value_row, material_property_value_column,"
+                        " material_property_value_depth, material_property_value "
+                        "FROM material_property_array_value "
+                        "WHERE material_property_value_id = ? "
+                        "ORDER BY material_property_value_id ASC",
+                       materialPropertyValueId)
         rows = cursor.fetchall()
         for row in rows:
-            properties[row.material_property_name] = row.material_property_value
+            array.setValue(row.material_property_value_row,
+                            row.material_property_value_column,
+                            row.material_property_value)
+
+        return array
+
+    def _getMaterialPropertyArray3D(self, materialPropertyValueId):
+        cursor = self._cursor()
+        array=Materials.Array3D()
+
+        cursor.execute("SELECT material_property_array_depth, material_property_array_columns "
+                        "FROM material_property_array_description "
+                        "WHERE material_property_value_id = ?",
+                       materialPropertyValueId)
+        row = cursor.fetchone()
+        if not row:
+            return None
+        # Columns must be set first so depth can be created
+        array.Columns = row.material_property_array_columns
+        array.Depth = row.material_property_array_depth
+
+        cursor.execute("SELECT material_property_value "
+                        "FROM material_property_string_value "
+                        "WHERE material_property_value_id = ?",
+                       materialPropertyValueId)
+        rows = cursor.fetchall()
+        for depth, row in enumerate(rows):
+            array.setDepthValue(depth, row.material_property_value)
+
+        cursor.execute("SELECT material_property_value_row, material_property_value_column,"
+                        " material_property_value_depth, material_property_value_depth_rows,"
+                        " material_property_value "
+                        "FROM material_property_array_value "
+                        "WHERE material_property_value_id = ? "
+                        "ORDER BY material_property_value_id ASC",
+                       materialPropertyValueId)
+        rows = cursor.fetchall()
+
+        for row in rows:
+            array.setRows(row.material_property_value_depth, row.material_property_value_depth_rows)
+            array.setValue(row.material_property_value_depth,
+                            row.material_property_value_row,
+                            row.material_property_value_column,
+                            row.material_property_value)
+
+        return array
+
+    def _getMaterialPropertyValue(self, materialPropertyValueId, type):
+        if type == "2DArray":
+            return self._getMaterialPropertyArray2D(materialPropertyValueId)
+        elif type == "3DArray":
+            return self._getMaterialPropertyArray3D(materialPropertyValueId)
+        elif type == "SVG" or \
+           type == "Image":
+            return self._getMaterialPropertyLongStringValue(materialPropertyValueId)
+        elif type == "List" or \
+           type == "FileList":
+            return self._getMaterialPropertyListValue(materialPropertyValueId)
+        elif type == "ImageList":
+            return self._getMaterialPropertyLongListValue(materialPropertyValueId)
+
+        return self._getMaterialPropertyStringValue(materialPropertyValueId)
+
+    def _getMaterialProperties(self, uuid):
+        cursor = self._cursor()
+        cursor.execute("SELECT material_property_value_id, material_property_name, material_property_type "
+                        "FROM material_property_value "
+                        "WHERE material_id = ?",
+                       uuid)
+
+        propertyKeys = {}
+        rows = cursor.fetchall()
+        for row in rows:
+            propertyKeys[row.material_property_name] = (row.material_property_value_id, row.material_property_type)
+
+        properties = {}
+        for key, value in propertyKeys.items():
+            properties[key] = self._getMaterialPropertyValue(value[0], value[1])
 
         return properties
 
@@ -730,9 +1020,9 @@ class DatabaseMySQL(Database):
             material.URL = row.material_url
             material.Reference = row.material_reference
 
-            library = self._getMaterialLibrary(row.library_id)
+            library = self._getLibrary(row.library_id)
 
-            path = self._getPath(row.folder_id) + "/" + row.material_name
+            path = self._getPath(row.folder_id) #+ "/" + row.material_name
             material.Directory = path
 
             tags = self._getTags(uuid)
@@ -745,7 +1035,7 @@ class DatabaseMySQL(Database):
             for model in self._getMaterialModels(uuid, False):
                 material.addAppearanceModel(model)
 
-            self.addModelProperties(material)
+            # self.addModelProperties(material)
 
             # The actual properties are set by the model. We just need to load the values
             properties = self._getMaterialProperties(uuid)
@@ -758,11 +1048,11 @@ class DatabaseMySQL(Database):
             # Rethrow
             raise notFound
         except Exception as ex:
-            print("Unable to get model:", ex)
+            print("Unable to get material:", ex)
             raise DatabaseMaterialNotFound(ex)
 
-    def addModelProperties(self, material):
-        print("addModelProperties()")
-        print("{} Physical models".format(len(material.PhysicalModels)))
-        print("{} Appearance models".format(len(material.AppearanceModels)))
-        print("{} Properties".format(len(material.PropertyObjects)))
+    # def addModelProperties(self, material):
+    #     print("addModelProperties()")
+    #     print("{} Physical models".format(len(material.PhysicalModels)))
+    #     print("{} Appearance models".format(len(material.AppearanceModels)))
+    #     print("{} Properties".format(len(material.PropertyObjects)))
