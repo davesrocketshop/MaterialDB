@@ -1,5 +1,5 @@
 # ***************************************************************************
-# *   Copyright (c) 2024 David Carter <dcarter@davidcarter.ca>              *
+# *   Copyright (c) 2021-2024 David Carter <dcarter@davidcarter.ca>         *
 # *                                                                         *
 # *   This program is free software; you can redistribute it and/or modify  *
 # *   it under the terms of the GNU Lesser General Public License (LGPL)    *
@@ -18,23 +18,18 @@
 # *   USA                                                                   *
 # *                                                                         *
 # ***************************************************************************
+"""Class for external interface exceptions"""
 
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-import FreeCAD
+class ManagerDeleteError(Exception):
 
-from DraftTools import translate
+    def __init__(self, msg="Unable to remove object", error=None):
+        self._error = error
+        self.msg = msg
 
-class CmdTest:
-    def Activated(self):
-        # obj = MaterialsDBManager()
-        print("Test")
-
-    def IsActive(self):
-        return True
-
-    def GetResources(self):
-        return {'MenuText': translate("Rocket", 'Test'),
-                'ToolTip': translate("Rocket", 'Test'),
-                'Pixmap': FreeCAD.getUserAppDataDir() + "Mod/MaterialDB/Resources/icons/MaterialDBWorkbench.svg"}
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)

@@ -18,9 +18,8 @@
 # *   USA                                                                   *
 # *                                                                         *
 # ***************************************************************************
-"""Class for part import exceptions"""
+"""Class for database exceptions"""
 
-__title__ = "FreeCAD Rocket Import Exceptions"
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
