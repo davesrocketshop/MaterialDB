@@ -22,8 +22,6 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-# import pyodbc
-
 from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
 from MaterialDB.Configuration import getDatabaseName
 from MaterialDB.Database.Exceptions import DatabaseCreationError, DatabaseTableCreationError

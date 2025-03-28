@@ -31,12 +31,9 @@ import pyodbc
 from DraftTools import translate
 
 from PySide import  QtCore, QtGui
-# from PySide.QtGui import QMessageBox
 
 from MaterialDB.Configuration import getPreferencesLocation
 
-# from MaterialDB.Database.DatabaseMySQLCreate import DatabaseMySQLCreate
-# from MaterialDB.Database.Exceptions import DatabaseCreationError, DatabaseTableCreationError
 from MaterialDB.util.UIPath import getUIPath
 
 class DlgSettingsDatabase(QtCore.QObject):

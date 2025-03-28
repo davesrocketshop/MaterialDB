@@ -17,7 +17,7 @@
       <tag>materials</tag>
 
       <depend>Material</depend>
-      <depend type="python">mysql-connector-python</depend>
+      <!-- <depend type="python">mysql-connector-python</depend> -->
       <depend type="python">pyodbc</depend>
     </workbench>
   </content>
