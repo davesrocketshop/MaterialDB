@@ -72,8 +72,15 @@ class MaterialsDBManager(MaterialManagerExternal):
     def libraryMaterials(self, library: str,
                          filter: Materials.MaterialFilter = None,
                          options: Materials.MaterialFilterOptions = None) -> list:
+        import cProfile
+        pr = cProfile.Profile()
+        pr.enable()
         # print("libraryMaterials('{}')".format(library))
-        return self._db.libraryMaterials(library)
+        mat = self._db.libraryMaterials(library)
+
+        pr.disable()
+        pr.dump_stats("/Users/dcarter/Documents/profile.cprof")
+        return mat
 
     #
     # Model methods

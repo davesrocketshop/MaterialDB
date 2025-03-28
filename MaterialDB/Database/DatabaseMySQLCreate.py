@@ -39,7 +39,8 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             library_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                             library_name VARCHAR(512) NOT NULL UNIQUE,
                             library_icon BLOB,
-                            library_read_only TINYINT(1) NOT NULL DEFAULT 0
+                            library_read_only TINYINT(1) NOT NULL DEFAULT 0,
+	                        library_modified DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                         )""",
             "folder" :  """CREATE TABLE folder (
                             folder_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
