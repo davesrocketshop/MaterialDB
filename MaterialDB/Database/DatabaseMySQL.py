@@ -55,7 +55,7 @@ class DatabaseMySQL(Database):
         try:
             cursor = self._cursor()
 
-            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
+            cursor.execute("SELECT library_id, library_icon, library_read_only FROM library WHERE library_name = ?", name)
             row = cursor.fetchone()
             if not row:
                 if icon is None:
@@ -66,6 +66,13 @@ class DatabaseMySQL(Database):
                             "VALUES (?, ?, ?)", name, icon, readOnly)
                 self._connection.commit()
             else:
+                # Check that everthing matches
+                if icon is None:
+                    if readOnly == row.library_read_only and len(row.library_icon) == 0:
+                        return
+                else:
+                    if readOnly == row.library_read_only and icon == row.library_icon.decode('UTF-8'):
+                        return
                 raise DatabaseLibraryCreationError("Library already exists")
         except Exception as ex:
             print("Unable to create library:", ex)
@@ -270,7 +277,7 @@ class DatabaseMySQL(Database):
                 )
             propertyId = self._lastId(cursor)
             for column in property.Columns:
-                self._createModelPropertyColumn(propertyId, column)
+                self._createModelPropertyColumn(propertyId, column, libraryIndex)
             self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
@@ -298,7 +305,7 @@ class DatabaseMySQL(Database):
                 )
             propertyId = self._lastId(cursor)
             for column in property.Columns:
-                self._createModelPropertyColumn(propertyId, column)
+                self._createModelPropertyColumn(propertyId, column, libraryIndex)
             self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
@@ -324,10 +331,10 @@ class DatabaseMySQL(Database):
                         )
 
             for inherit in model.Inherited:
-                self._createInheritance(model.UUID, inherit)
+                self._createInheritance(model.UUID, inherit, libraryIndex)
 
             for property in model.Properties.values():
-                self._createModelProperty(model.UUID, property)
+                self._createModelProperty(model.UUID, property, libraryIndex)
             self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
@@ -372,7 +379,7 @@ class DatabaseMySQL(Database):
             # Do these deletes need to be smarter due to foreing key constraints?
             cursor.execute("DELETE FROM model_inheritance WHERE model_id = ?", model.UUID)
             for inherit in model.Inherited:
-                self._createInheritance(model.UUID, inherit)
+                self._createInheritance(model.UUID, inherit, libraryIndex)
 
             cursor.execute("SELECT model_property_id, model_property_name FROM model_property WHERE model_id = ?", model.UUID)
             rows = cursor.fetchall()
@@ -385,7 +392,7 @@ class DatabaseMySQL(Database):
                 cursor.execute("DELETE FROM model_property WHERE model_property_id = ?", property_id)
 
             for property in model.Properties.values():
-                self._updateModelProperty(model.UUID, property)
+                self._updateModelProperty(model.UUID, property, libraryIndex)
             self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
@@ -445,7 +452,7 @@ class DatabaseMySQL(Database):
 
     def _createStringValue(self, materialUUID, name, type, value, libraryIndex):
         if value is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, type)
+            value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
             cursor = self._cursor()
 
             cursor.execute("INSERT INTO material_property_string_value "
@@ -457,7 +464,7 @@ class DatabaseMySQL(Database):
 
     def _createLongStringValue(self, materialUUID, name, type, value, libraryIndex):
         if value is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, type)
+            value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
             cursor = self._cursor()
 
             cursor.execute("INSERT INTO material_property_long_string_value "
@@ -469,7 +476,7 @@ class DatabaseMySQL(Database):
 
     def _createListValue(self, materialUUID, name, type, list, libraryIndex):
         if list is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, type)
+            value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
             cursor = self._cursor()
 
             for entry in list:
@@ -483,7 +490,7 @@ class DatabaseMySQL(Database):
 
     def _createLongListValue(self, materialUUID, name, type, list, libraryIndex):
         if list is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, type)
+            value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
             cursor = self._cursor()
 
             for entry in list:
@@ -497,7 +504,7 @@ class DatabaseMySQL(Database):
 
     def _createArrayValue3D(self, materialUUID, name, propertyType, array, libraryIndex):
         if array is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, propertyType)
+            value_id = self._createMaterialPropertyValue(materialUUID, name, propertyType, libraryIndex)
             cursor = self._cursor()
 
             rows = 0
@@ -531,7 +538,7 @@ class DatabaseMySQL(Database):
 
     def _createArrayValue2D(self, materialUUID, name, propertyType, array, libraryIndex):
         if array is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, propertyType)
+            value_id = self._createMaterialPropertyValue(materialUUID, name, propertyType, libraryIndex)
             cursor = self._cursor()
 
             cursor.execute("INSERT INTO material_property_array_description "
@@ -555,7 +562,7 @@ class DatabaseMySQL(Database):
             self._updateTimestamp(cursor, libraryIndex)
             self._connection.commit()
 
-    def _createMaterialProperty(self, materialUUID, material, property):
+    def _createMaterialProperty(self, materialUUID, material, property, libraryIndex):
         if property.Type == "2DArray" or \
            property.Type == "3DArray":
             if material.hasPhysicalProperty(property.Name):
@@ -563,23 +570,23 @@ class DatabaseMySQL(Database):
             else:
                 array = material.getAppearanceValue(property.Name)
             if array.Dimensions == 2:
-                self._createArrayValue2D(materialUUID, property.Name, property.Type, array)
+                self._createArrayValue2D(materialUUID, property.Name, property.Type, array, libraryIndex)
             else:
-                self._createArrayValue3D(materialUUID, property.Name, property.Type, array)
+                self._createArrayValue3D(materialUUID, property.Name, property.Type, array, libraryIndex)
         elif property.Type == "List" or \
            property.Type == "FileList":
-            self._createListValue(materialUUID, property.Name, property.Type, property.Value)
+            self._createListValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
         elif property.Type == "ImageList":
-            self._createLongListValue(materialUUID, property.Name, property.Type, property.Value)
+            self._createLongListValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
         elif property.Type == "Quantity":
             if property.Empty:
                 return
-            self._createStringValue(materialUUID, property.Name, property.Type, property.Value.UserString)
+            self._createStringValue(materialUUID, property.Name, property.Type, property.Value.UserString, libraryIndex)
         elif property.Type == "SVG" or \
             property.Type == "Image":
-            self._createLongStringValue(materialUUID, property.Name, property.Type, property.Value)
+            self._createLongStringValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
         else:
-            self._createStringValue(materialUUID, property.Name, property.Type, property.Value)
+            self._createStringValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
 
     def _createMaterial(self, libraryIndex, path, material):
         pathIndex = self._createPath(libraryIndex, path)
@@ -613,19 +620,19 @@ class DatabaseMySQL(Database):
                             )
 
             for tag in material.Tags:
-                self._createTag(material.UUID, tag)
+                self._createTag(material.UUID, tag, libraryIndex)
 
             # print("{} Physical models".format(len(material.PhysicalModels)))
             for model in material.PhysicalModels:
-                self._createMaterialModel(material.UUID, model)
+                self._createMaterialModel(material.UUID, model, libraryIndex)
 
             # print("{} Appearance models".format(len(material.AppearanceModels)))
             for model in material.AppearanceModels:
-                self._createMaterialModel(material.UUID, model)
+                self._createMaterialModel(material.UUID, model, libraryIndex)
 
             # print("{} Properties".format(len(material.PropertyObjects)))
             for property in material.PropertyObjects.values():
-                self._createMaterialProperty(material.UUID, material, property)
+                self._createMaterialProperty(material.UUID, material, property, libraryIndex)
             self._updateTimestamp(cursor, libraryIndex)
 
         self._connection.commit()
