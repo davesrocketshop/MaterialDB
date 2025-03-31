@@ -49,6 +49,10 @@ class MaterialsDBManager(MaterialManagerExternal):
         # print("materialLibraries()")
         return self._db.getMaterialLibraries()
 
+    def getLibrary(self, name: str) -> tuple:
+        # print("getLibrary('{}')".format(name))
+        return self._db.getLibrary(name)
+
     def createLibrary(self, name: str, icon: str, readOnly: bool) -> None:
         # print("createLibrary('{}', '{}', '{}')".format(name, icon, readOnly))
         self._db.createLibrary(name, icon, readOnly)

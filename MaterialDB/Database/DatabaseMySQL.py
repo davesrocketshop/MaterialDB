@@ -685,6 +685,18 @@ class DatabaseMySQL(Database):
 
         return libraries
 
+    def getLibrary(self, name):
+        libraries = []
+        cursor = self._cursor()
+        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified"
+                       " FROM library WHERE library_name = ?", name)
+
+        row = cursor.fetchone()
+        if row:
+            return (row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+                              row.library_modified)
+        return None
+
     def _getLibrary(self, libraryId):
         cursor = self._cursor()
         cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
