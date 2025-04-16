@@ -25,6 +25,7 @@ __url__ = "https://www.davesrocketshop.com"
 from functools import cache
 
 import Materials
+from MaterialAPI.MaterialManagerExternal import MaterialLibraryType, MaterialLibraryObjectType
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
     DatabaseIconError, DatabaseLibraryNotFound, \
@@ -138,7 +139,7 @@ class DatabaseMySQL(Database):
             pathModels = []
             for model in models:
                 # Convert the folder_id to a path
-                pathModels.append((model[0], self._getPath(model[1]), model[2]))
+                pathModels.append(MaterialLibraryObjectType(model[0], self._getPath(model[1]), model[2]))
 
             return pathModels
         except Exception as ex:
@@ -161,7 +162,7 @@ class DatabaseMySQL(Database):
                            " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
             rows = cursor.fetchall()
             for row in rows:
-                materials.append((row.material_id, row.folder_name, row.material_name))
+                materials.append(MaterialLibraryObjectType(row.material_id, row.folder_name, row.material_name))
 
             return materials
         except Exception as ex:
@@ -656,7 +657,7 @@ class DatabaseMySQL(Database):
                                     "library")
         rows = cursor.fetchall()
         for row in rows:
-            libraries.append((row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
                               row.library_modified))
 
         return libraries
@@ -668,7 +669,7 @@ class DatabaseMySQL(Database):
                        " FROM library l, model m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
         for row in rows:
-            libraries.append((row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
                               row.library_modified))
 
         return libraries
@@ -680,7 +681,7 @@ class DatabaseMySQL(Database):
                        " FROM library l, material m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
         for row in rows:
-            libraries.append((row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
                               row.library_modified))
 
         return libraries

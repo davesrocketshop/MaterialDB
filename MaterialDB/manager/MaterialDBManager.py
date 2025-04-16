@@ -24,7 +24,8 @@ __url__ = "https://www.davesrocketshop.com"
 
 import Materials
 
-from MaterialAPI.MaterialManagerExternal import MaterialManagerExternal
+from MaterialAPI.MaterialManagerExternal import MaterialManagerExternal, \
+    MaterialLibraryType, MaterialLibraryObjectType
 
 from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
@@ -37,15 +38,15 @@ class MaterialsDBManager(MaterialManagerExternal):
     def __init__(self):
         self._db = DatabaseMySQL()
 
-    def libraries(self) -> list:
+    def libraries(self) -> list[MaterialLibraryType]:
         # print("libraries()")
         return self._db.getLibraries()
 
-    def modelLibraries(self) -> list:
+    def modelLibraries(self) -> list[MaterialLibraryType]:
         # print("modelLibraries()")
         return self._db.getModelLibraries()
 
-    def materialLibraries(self) -> list:
+    def materialLibraries(self) -> list[MaterialLibraryType]:
         # print("materialLibraries()")
         return self._db.getMaterialLibraries()
 
@@ -69,13 +70,13 @@ class MaterialsDBManager(MaterialManagerExternal):
         # print("removeLibrary('{}')".format(library))
         self._db.removeLibrary(library)
 
-    def libraryModels(self, library: str) -> list:
+    def libraryModels(self, library: str) -> list[MaterialLibraryObjectType]:
         # print("libraryModels('{}')".format(library))
         return self._db.libraryModels(library)
 
     def libraryMaterials(self, library: str,
                          filter: Materials.MaterialFilter = None,
-                         options: Materials.MaterialFilterOptions = None) -> list:
+                         options: Materials.MaterialFilterOptions = None) -> list[MaterialLibraryObjectType]:
         import cProfile
         pr = cProfile.Profile()
         pr.enable()
