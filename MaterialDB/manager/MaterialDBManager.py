@@ -54,15 +54,15 @@ class MaterialsDBManager(MaterialManagerExternal):
         # print("getLibrary('{}')".format(name))
         return self._db.getLibrary(name)
 
-    def createLibrary(self, name: str, icon: str, readOnly: bool) -> None:
+    def createLibrary(self, name: str, icon: bytes, iconPath: str, readOnly: bool) -> None:
         # print("createLibrary('{}', '{}', '{}')".format(name, icon, readOnly))
-        self._db.createLibrary(name, icon, readOnly)
+        self._db.createLibrary(name, icon, iconPath, readOnly)
 
     def renameLibrary(self, oldName: str, newName: str) -> None:
         # print("renameLibrary('{}', '{}')".format(oldName, newName))
         self._db.renameLibrary(oldName, newName)
 
-    def changeIcon(self, name: str, icon: str) -> None:
+    def changeIcon(self, name: str, icon: bytes) -> None:
         # print("changeIcon('{}', '{}')".format(name, icon))
         self._db.changeIcon(name, icon)
 

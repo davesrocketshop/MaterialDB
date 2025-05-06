@@ -72,6 +72,8 @@ class TaskPanelCreateDatabase(QtCore.QObject):
             self._db.createDatabase(self.form.editDatabase.text())
             self.updateStatus(translate('MaterialDB', "Creating tables..."))
             self._db.createTables()
+            self.updateStatus(translate('MaterialDB', "Creating functions..."))
+            self._db.createFunctions()
             self.updateStatus(translate('MaterialDB', "done"))
         except DatabaseCreationError as dbErr:
             self.reportError(translate('MaterialDB', "Unable to create database."),

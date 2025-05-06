@@ -24,6 +24,9 @@ __url__ = "https://www.davesrocketshop.com"
 
 from functools import cache
 
+from PySide.QtCore import QByteArray, QBuffer, QIODevice
+from PySide.QtGui import QImage
+
 import Materials
 from MaterialAPI.MaterialManagerExternal import MaterialLibraryType, MaterialLibraryObjectType
 from MaterialDB.Database.Database import Database
@@ -52,19 +55,33 @@ class DatabaseMySQL(Database):
             return row.library_id
         return 0
 
-    def createLibrary(self, name, icon, readOnly):
+    def _getIcon(self, icon, iconPath):
+        if icon is None or len(icon) == 0:
+            if iconPath is None or len(iconPath) == 0:
+                return None
+            iconImage = QImage(iconPath)
+            ba = QByteArray()
+            buffer = QBuffer(ba)
+            buffer.open(QIODevice.WriteOnly)
+            iconImage.save(buffer, "PNG") # writes image into ba in PNG format
+            # iconImage.save(buffer) # writes image into ba in PNG format
+            return bytes(ba.data())
+        return icon
+
+    def createLibrary(self, name, icon, iconPath, readOnly):
         try:
             cursor = self._cursor()
 
             cursor.execute("SELECT library_id, library_icon, library_read_only FROM library WHERE library_name = ?", name)
             row = cursor.fetchone()
             if not row:
-                if icon is None:
+                iconBytes = self._getIcon(icon, iconPath)
+                if iconBytes is None or len(iconBytes) == 0:
                     cursor.execute("INSERT INTO library (library_name, library_read_only) "
                                         "VALUES (?, ?)", name, readOnly)
                 else:
                     cursor.execute("INSERT INTO library (library_name, library_icon, library_read_only) "
-                            "VALUES (?, ?, ?)", name, icon, readOnly)
+                            "VALUES (?, ?, ?)", name, iconBytes, readOnly)
                 self._connection.commit()
             else:
                 # Check that everthing matches
@@ -72,11 +89,13 @@ class DatabaseMySQL(Database):
                     if readOnly == row.library_read_only and len(row.library_icon) == 0:
                         return
                 else:
-                    if readOnly == row.library_read_only and icon == row.library_icon.decode('UTF-8'):
+                    # if readOnly == row.library_read_only and icon == row.library_icon.decode('UTF-8'):
+                    #     return
+                    if readOnly == row.library_read_only and icon == row.library_icon:
                         return
                 raise DatabaseLibraryCreationError("Library already exists")
         except Exception as ex:
-            print("Unable to create library:", ex)
+            print("Unable to create library '{}':".format(name), ex)
             raise DatabaseLibraryCreationError(ex)
 
     def renameLibrary(self, oldName, newName):
@@ -93,7 +112,7 @@ class DatabaseMySQL(Database):
 
             self._connection.commit()
         except Exception as ex:
-            print("Unable to create library:", ex)
+            print("Unable to rename library:", ex)
             raise DatabaseRenameError(ex)
 
     def changeIcon(self, name, icon):
@@ -657,8 +676,10 @@ class DatabaseMySQL(Database):
                                     "library")
         rows = cursor.fetchall()
         for row in rows:
-            libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-                              row.library_modified))
+            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            #                   row.library_modified))
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified)))
 
         return libraries
 
@@ -669,8 +690,10 @@ class DatabaseMySQL(Database):
                        " FROM library l, model m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
         for row in rows:
-            libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-                              row.library_modified))
+            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            #                   row.library_modified))
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified)))
 
         return libraries
 
@@ -681,8 +704,10 @@ class DatabaseMySQL(Database):
                        " FROM library l, material m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
         for row in rows:
-            libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-                              row.library_modified))
+            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            #                   row.library_modified))
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified)))
 
         return libraries
 
@@ -694,18 +719,22 @@ class DatabaseMySQL(Database):
 
         row = cursor.fetchone()
         if row:
-            return (row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-                              row.library_modified)
+            # return MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            #                   row.library_modified)
+            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified))
         return None
 
     def _getLibrary(self, libraryId):
         cursor = self._cursor()
-        cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
-                                    "library WHERE library_id = ?",
+        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified "
+                                    "FROM library WHERE library_id = ?",
                        libraryId)
         row = cursor.fetchone()
         if row:
-            return (row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only)
+            # return (row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only)
+            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified))
         return None
 
     def _getPath(self, folderId):
