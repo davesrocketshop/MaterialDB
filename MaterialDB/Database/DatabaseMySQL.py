@@ -28,7 +28,8 @@ from PySide.QtCore import QByteArray, QBuffer, QIODevice
 from PySide.QtGui import QImage
 
 import Materials
-from MaterialAPI.MaterialManagerExternal import MaterialLibraryType, MaterialLibraryObjectType
+from MaterialAPI.MaterialManagerExternal import MaterialLibraryType, MaterialLibraryObjectType, \
+    ModelObjectType
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
     DatabaseIconError, DatabaseLibraryNotFound, \
@@ -879,7 +880,7 @@ class DatabaseMySQL(Database):
             for property in properties:
                 model.addProperty(property)
 
-            return (uuid, library, model)
+            return ModelObjectType(library.name, model)
 
         except DatabaseModelNotFound as notFound:
             # Rethrow

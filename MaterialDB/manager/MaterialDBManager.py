@@ -25,7 +25,7 @@ __url__ = "https://www.davesrocketshop.com"
 import Materials
 
 from MaterialAPI.MaterialManagerExternal import MaterialManagerExternal, \
-    MaterialLibraryType, MaterialLibraryObjectType
+    MaterialLibraryType, MaterialLibraryObjectType, ModelObjectType
 
 from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
@@ -91,7 +91,7 @@ class MaterialsDBManager(MaterialManagerExternal):
     # Model methods
     #
 
-    def getModel(self, uuid: str) -> Materials.Model:
+    def getModel(self, uuid: str) -> ModelObjectType:
         # print("getModel('{}')".format(uuid))
         return self._db.getModel(uuid)
 
