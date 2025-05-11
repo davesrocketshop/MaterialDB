@@ -88,6 +88,19 @@ class MaterialsDBManager(MaterialManagerExternal):
         return mat
 
     #
+    # Folder methods
+    #
+
+    def createFolder(self, library: str, path: str) -> None:
+        pass
+
+    def renameFolder(self, library: str, oldPath: str, newPath: str) -> None:
+        pass
+
+    def deleteRecursive(self, library: str, path: str) -> None:
+        pass
+
+    #
     # Model methods
     #
 
