@@ -50,55 +50,55 @@ class MaterialsDBManager(MaterialManagerExternal):
         # print("materialLibraries()")
         return self._db.getMaterialLibraries()
 
-    def getLibrary(self, name: str) -> tuple:
-        # print("getLibrary('{}')".format(name))
-        return self._db.getLibrary(name)
+    def getLibrary(self, libraryName: str) -> tuple:
+        # print("getLibrary('{}')".format(libraryName))
+        return self._db.getLibrary(libraryName)
 
-    def createLibrary(self, name: str, icon: bytes, iconPath: str, readOnly: bool) -> None:
-        # print("createLibrary('{}', '{}', '{}')".format(name, icon, readOnly))
-        self._db.createLibrary(name, icon, iconPath, readOnly)
+    def createLibrary(self, libraryName: str, icon: bytes, iconPath: str, readOnly: bool) -> None:
+        # print("createLibrary('{}', '{}', '{}')".format(libraryName, icon, readOnly))
+        self._db.createLibrary(libraryName, icon, iconPath, readOnly)
 
     def renameLibrary(self, oldName: str, newName: str) -> None:
         # print("renameLibrary('{}', '{}')".format(oldName, newName))
         self._db.renameLibrary(oldName, newName)
 
-    def changeIcon(self, name: str, icon: bytes) -> None:
-        # print("changeIcon('{}', '{}')".format(name, icon))
-        self._db.changeIcon(name, icon)
+    def changeIcon(self, libraryName: str, icon: bytes) -> None:
+        # print("changeIcon('{}', '{}')".format(libraryName, icon))
+        self._db.changeIcon(libraryName, icon)
 
-    def removeLibrary(self, library: str) -> None:
-        # print("removeLibrary('{}')".format(library))
-        self._db.removeLibrary(library)
+    def removeLibrary(self, libraryName: str) -> None:
+        # print("removeLibrary('{}')".format(libraryName))
+        self._db.removeLibrary(libraryName)
 
-    def libraryModels(self, library: str) -> list[MaterialLibraryObjectType]:
-        # print("libraryModels('{}')".format(library))
-        return self._db.libraryModels(library)
+    def libraryModels(self, libraryName: str) -> list[MaterialLibraryObjectType]:
+        # print("libraryModels('{}')".format(libraryName))
+        return self._db.libraryModels(libraryName)
 
-    def libraryMaterials(self, library: str,
+    def libraryMaterials(self, libraryName: str,
                          filter: Materials.MaterialFilter = None,
                          options: Materials.MaterialFilterOptions = None) -> list[MaterialLibraryObjectType]:
-        import cProfile
-        pr = cProfile.Profile()
-        pr.enable()
-        # print("libraryMaterials('{}')".format(library))
-        mat = self._db.libraryMaterials(library)
+        # print("libraryMaterials('{}')".format(libraryName))
+        return self._db.libraryMaterials(libraryName)
 
-        pr.disable()
-        pr.dump_stats("/Users/dcarter/Documents/profile.cprof")
-        return mat
+    def libraryFolders(self, libraryName: str) -> list[str]:
+        print("libraryFolders('{}')".format(libraryName))
+        return self._db.libraryFolders(libraryName)
 
     #
     # Folder methods
     #
 
-    def createFolder(self, library: str, path: str) -> None:
-        pass
+    def createFolder(self, libraryName: str, path: str) -> None:
+        print("createFolder('{0}', '{1}')".format(libraryName, path))
+        self._db.createFolder(libraryName, path)
 
-    def renameFolder(self, library: str, oldPath: str, newPath: str) -> None:
-        pass
+    def renameFolder(self, libraryName: str, oldPath: str, newPath: str) -> None:
+        print("renameFolder('{0}', '{1}', '{2}')".format(libraryName, oldPath, newPath))
+        self._db.renameFolder(libraryName, oldPath, newPath)
 
-    def deleteRecursive(self, library: str, path: str) -> None:
-        pass
+    def deleteRecursive(self, libraryName: str, path: str) -> None:
+        print("deleteRecursive('{0}', '{1}')".format(libraryName, path))
+        self._db.deleteRecursive(libraryName, path)
 
     #
     # Model methods
@@ -108,30 +108,30 @@ class MaterialsDBManager(MaterialManagerExternal):
         # print("getModel('{}')".format(uuid))
         return self._db.getModel(uuid)
 
-    def addModel(self, library: str, path: str, model: Materials.Model) -> None:
-        # print("addModel('{}', '{}', '{}')".format(library, path, model.Name))
-        self._db.createModel(library, path, model)
+    def addModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
+        # print("addModel('{}', '{}', '{}')".format(libraryName, path, model.Name))
+        self._db.createModel(libraryName, path, model)
 
-    def migrateModel(self, library: str, path: str, model: Materials.Model) -> None:
-        # print("migrateModel('{}', '{}', '{}')".format(library, path, model.Name))
+    def migrateModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
+        # print("migrateModel('{}', '{}', '{}')".format(libraryName, path, model.Name))
         try:
-            self._db.createModel(library, path, model)
+            self._db.createModel(libraryName, path, model)
         except DatabaseModelExistsError:
             # If it exists we just ignore
             pass
 
-    def updateModel(self, library: str, path: str, model: Materials.Model) -> None:
-        # print("updateModel('{}', '{}', '{}')".format(library, path, model.Name))
-        self._db.updateModel(library, path, model)
+    def updateModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
+        # print("updateModel('{}', '{}', '{}')".format(libraryName, path, model.Name))
+        self._db.updateModel(libraryName, path, model)
 
-    def setModelPath(self, library: str, path: str, model: Materials.Model) -> None:
-        print("setModelPath('{}', '{}', '{}')".format(library, path, model.Name))
+    def setModelPath(self, libraryName: str, path: str, model: Materials.Model) -> None:
+        print("setModelPath('{}', '{}', '{}')".format(libraryName, path, model.Name))
 
-    def renameModel(self, library: str, name: str, model: Materials.Model) -> None:
-        print("renameModel('{}', '{}', '{}')".format(library, name, model.Name))
+    def renameModel(self, libraryName: str, name: str, model: Materials.Model) -> None:
+        print("renameModel('{}', '{}', '{}')".format(libraryName, name, model.Name))
 
-    def moveModel(self, library: str, path: str, model: Materials.Model) -> None:
-        print("moveModel('{}', '{}', '{}')".format(library, path, model.Name))
+    def moveModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
+        print("moveModel('{}', '{}', '{}')".format(libraryName, path, model.Name))
 
     def removeModel(self, model: Materials.Model) -> None:
         print("removeModel('{}')".format(model.Name))
@@ -144,30 +144,30 @@ class MaterialsDBManager(MaterialManagerExternal):
         # print("getMaterial('{}')".format(uuid))
         return self._db.getMaterial(uuid)
 
-    def addMaterial(self, library: str, path: str, material: Materials.Material) -> None:
-        # print("addMaterial('{}', '{}', '{}')".format(library, path, material.Name))
-        self._db.createMaterial(library, path, material)
+    def addMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
+        # print("addMaterial('{}', '{}', '{}')".format(libraryName, path, material.Name))
+        self._db.createMaterial(libraryName, path, material)
 
-    def migrateMaterial(self, library: str, path: str, material: Materials.Material) -> None:
-        # print("migrateMaterial('{}', '{}', '{}')".format(library, path, material.Name))
+    def migrateMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
+        # print("migrateMaterial('{}', '{}', '{}')".format(libraryName, path, material.Name))
         try:
-            self._db.createMaterial(library, path, material)
+            self._db.createMaterial(libraryName, path, material)
         except DatabaseMaterialExistsError:
             # If it exists we just ignore
             print("Ignore DatabaseModelExistsError error")
             pass
 
-    def updateMaterial(self, library: str, path: str, material: Materials.Material) -> None:
-        print("updateMaterial('{}', '{}', '{}')".format(library, path, material.Name))
+    def updateMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
+        print("updateMaterial('{}', '{}', '{}')".format(libraryName, path, material.Name))
 
-    def setMaterialPath(self, library: str, path: str, material: Materials.Material) -> None:
-        print("setMaterialPath('{}', '{}', '{}')".format(library, path, material.Name))
+    def setMaterialPath(self, libraryName: str, path: str, material: Materials.Material) -> None:
+        print("setMaterialPath('{}', '{}', '{}')".format(libraryName, path, material.Name))
 
-    def renameMaterial(self, library: str, name: str, material: Materials.Material) -> None:
-        print("renameMaterial('{}', '{}', '{}')".format(library, name, material.Name))
+    def renameMaterial(self, libraryName: str, name: str, material: Materials.Material) -> None:
+        print("renameMaterial('{}', '{}', '{}')".format(libraryName, name, material.Name))
 
-    def moveMaterial(self, library: str, path: str, material: Materials.Material) -> None:
-        print("moveMaterial('{}', '{}', '{}')".format(library, path, material.Name))
+    def moveMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
+        print("moveMaterial('{}', '{}', '{}')".format(libraryName, path, material.Name))
 
     def removeMaterial(self, material: Materials.Material) -> None:
         print("removeMaterial('{}')".format(material.Name))

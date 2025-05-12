@@ -32,7 +32,8 @@ from MaterialAPI.MaterialManagerExternal import MaterialLibraryType, MaterialLib
     ModelObjectType
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
-    DatabaseIconError, DatabaseLibraryNotFound, \
+    DatabaseIconError, DatabaseLibraryNotFound, DatabaseLibraryReadOnlyError, \
+    DatabaseFolderCreationError, \
     DatabaseModelCreationError, DatabaseMaterialCreationError, \
     DatabaseModelUpdateError, \
     DatabaseModelExistsError, DatabaseMaterialExistsError, \
@@ -44,30 +45,65 @@ class DatabaseMySQL(Database):
     def __init__(self):
         super().__init__()
 
-    def _updateTimestamp(self, cursor, libraryIndex):
-        cursor.execute("UPDATE library SET library_modified = NOW() WHERE library_id = ?", libraryIndex)
+    #
+    # Library methods
+    #
 
-    def _findLibrary(self, name):
+    def getLibraries(self):
+        libraries = []
         cursor = self._cursor()
+        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified FROM "
+                                    "library")
+        rows = cursor.fetchall()
+        for row in rows:
+            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            #                   row.library_modified))
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified)))
 
-        cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
+        return libraries
+
+    def getModelLibraries(self):
+        libraries = []
+        cursor = self._cursor()
+        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only, l.library_modified"
+                       " FROM library l, model m WHERE l.library_id = m.library_id")
+        rows = cursor.fetchall()
+        for row in rows:
+            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            #                   row.library_modified))
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified)))
+
+        return libraries
+
+    def getMaterialLibraries(self):
+        libraries = []
+        cursor = self._cursor()
+        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only, l.library_modified"
+                       " FROM library l, material m WHERE l.library_id = m.library_id")
+        rows = cursor.fetchall()
+        for row in rows:
+            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            #                   row.library_modified))
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified)))
+
+        return libraries
+
+    def getLibrary(self, name):
+        libraries = []
+        cursor = self._cursor()
+        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified"
+                       " FROM library WHERE library_name = ?", name)
+
         row = cursor.fetchone()
         if row:
-            return row.library_id
-        return 0
-
-    def _getIcon(self, icon, iconPath):
-        if icon is None or len(icon) == 0:
-            if iconPath is None or len(iconPath) == 0:
-                return None
-            iconImage = QImage(iconPath)
-            ba = QByteArray()
-            buffer = QBuffer(ba)
-            buffer.open(QIODevice.WriteOnly)
-            iconImage.save(buffer, "PNG") # writes image into ba in PNG format
-            # iconImage.save(buffer) # writes image into ba in PNG format
-            return bytes(ba.data())
-        return icon
+            # return MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
+            #                   row.library_modified)
+            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified))
+        return None
 
     def createLibrary(self, name, icon, iconPath, readOnly):
         try:
@@ -87,7 +123,7 @@ class DatabaseMySQL(Database):
             else:
                 # Check that everthing matches
                 if icon is None:
-                    if readOnly == row.library_read_only and len(row.library_icon) == 0:
+                    if readOnly == row.library_read_only and (row.library_icon is None or len(row.library_icon) == 0):
                         return
                 else:
                     # if readOnly == row.library_read_only and icon == row.library_icon.decode('UTF-8'):
@@ -166,7 +202,6 @@ class DatabaseMySQL(Database):
             print("Unable to get library models:", ex)
             raise DatabaseModelNotFound(ex)
 
-    # @cache
     def libraryMaterials(self, library):
         try:
             materials = []
@@ -188,6 +223,105 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             print("Unable to get library materials:", ex)
             raise DatabaseMaterialNotFound(ex)
+
+    def libraryFolders(self, libraryName: str) -> list[str]:
+        try:
+            cursor = self._cursor()
+
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", libraryName)
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseLibraryNotFound()
+
+            cursor.execute("SELECT f.folder_id, f.folder_name, f.library_id, f.parent_id"
+                           " FROM folder f, library l"
+                           " WHERE f.library_id = l.library_id AND l.library_name = ?"
+                           " ORDER BY f.parent_id", libraryName)
+            rows = cursor.fetchall()
+            folderTree = {}
+            for row in rows:
+                # folders.append(MaterialLibraryObjectType(row.material_id, row.folder_name, row.material_name))
+                if row.parent_id is None:
+                    folderTree[row.folder_id] = "/" + row.folder_name
+                else:
+                    folderTree[row.folder_id] = folderTree[row.parent_id] + "/" + row.folder_name
+            print(folderTree)
+
+            return folderTree.items
+        except Exception as ex:
+            print("Unable to get library folders:", ex)
+            raise DatabaseMaterialNotFound(ex)
+
+
+    def _updateTimestamp(self, cursor, libraryIndex):
+        cursor.execute("UPDATE library SET library_modified = NOW() WHERE library_id = ?", libraryIndex)
+
+    def _findLibrary(self, name):
+        cursor = self._cursor()
+
+        cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
+        row = cursor.fetchone()
+        if row:
+            return row.library_id
+        return 0
+
+    def _getIcon(self, icon, iconPath):
+        if icon is None or len(icon) == 0:
+            if iconPath is None or len(iconPath) == 0:
+                return None
+            iconImage = QImage(iconPath)
+            ba = QByteArray()
+            buffer = QBuffer(ba)
+            buffer.open(QIODevice.WriteOnly)
+            iconImage.save(buffer, "PNG") # writes image into ba in PNG format
+            # iconImage.save(buffer) # writes image into ba in PNG format
+            return bytes(ba.data())
+        return icon
+
+    def _getLibrary(self, libraryId):
+        cursor = self._cursor()
+        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified "
+                                    "FROM library WHERE library_id = ?",
+                       libraryId)
+        row = cursor.fetchone()
+        if row:
+            # return (row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only)
+            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
+                              str(row.library_modified))
+        return None
+
+    def _isReadOnly(self, libraryId):
+        cursor = self._cursor()
+        cursor.execute("SELECT library_read_only FROM library WHERE library_id = ?",
+                       libraryId)
+        row = cursor.fetchone()
+        if row:
+            return (row.library_read_only == True)
+        else:
+            raise DatabaseLibraryNotFound()
+
+    #
+    # Folder methods
+    #
+
+    def createFolder(self, libraryName: str, path: str) -> None:
+        try:
+            libraryIndex = self._findLibrary(libraryName)
+            if libraryIndex > 0:
+                if self._isReadOnly(libraryIndex):
+                    raise DatabaseLibraryReadOnlyError()
+                self._createPath(libraryIndex, path)
+            else:
+                raise DatabaseLibraryNotFound()
+        except Exception as ex:
+            print("Unable to create folder:", ex)
+            raise DatabaseFolderCreationError(ex)
+
+    def renameFolder(self, libraryName: str, oldPath: str, newPath: str) -> None:
+        pass
+
+    def deleteRecursive(self, libraryName: str, path: str) -> None:
+        pass
 
     def _createPathRecursive(self, libraryIndex, parentIndex, pathIndex, pathList):
         newId = 0
@@ -232,25 +366,112 @@ class DatabaseMySQL(Database):
             return self._createPathRecursive(libraryIndex, 0, 0, pathList)
         return newId
 
-    def _foreignKeysIgnore(self, cursor):
-        cursor.execute("SET FOREIGN_KEY_CHECKS=0")
-
-    def _foreignKeysRestore(self, cursor):
-        cursor.execute("SET FOREIGN_KEY_CHECKS=1")
-
-    def _createInheritance(self, modelUUID, inheritUUID, libraryIndex):
+    def _getPath(self, folderId):
+        path = ""
         cursor = self._cursor()
-        cursor.execute("SELECT model_inheritance_id FROM model_inheritance WHERE model_id "
-                                "= ? AND inherits_id = ?", modelUUID, inheritUUID)
-        row = cursor.fetchone()
-        if not row:
-            # Mass updates may insert models out of sequence creating a foreign key violation
-            self._foreignKeysIgnore(cursor)
-            cursor.execute("INSERT INTO model_inheritance (model_id, inherits_id) "
-                                    "VALUES (?, ?)", modelUUID, inheritUUID)
-            self._foreignKeysRestore(cursor)
-            self._updateTimestamp(cursor, libraryIndex)
-        self._connection.commit()
+        cursor.execute("""WITH RECURSIVE subordinate AS (
+                        SELECT
+                            folder_id,
+                            folder_name,
+                            parent_id
+                        FROM folder
+                        WHERE folder_id = ?
+
+                        UNION ALL
+
+                        SELECT
+                            e.folder_id,
+                            e.folder_name,
+                            e.parent_id
+                        FROM folder e
+                        JOIN subordinate s
+                        ON e.folder_id = s.parent_id
+                        )
+                        SELECT
+                            folder_name
+                        FROM subordinate
+                        ORDER BY folder_id ASC;""",
+                       folderId)
+        rows = cursor.fetchall()
+        first = True
+        for row in rows:
+            if first:
+                path = row.folder_name
+                first = False
+            else:
+                path += "/" + row.folder_name
+        return path
+
+    #
+    # Model methods
+    #
+
+    def getModel(self, uuid):
+        try:
+            cursor = self._cursor()
+            cursor.execute("SELECT library_id, folder_id, model_type, "
+                "model_name, model_url, model_description, model_doi FROM model WHERE model_id = ?",
+                        uuid)
+
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseModelNotFound()
+
+            model = Materials.Model()
+            # model.UUID = uuid
+            model.Type = row.model_type
+            model.Name = row.model_name
+            model.URL = row.model_url
+            model.Description = row.model_description
+            model.DOI = row.model_doi
+
+            # model.Library = self._getLibrary(row.library_id)
+            library = self._getLibrary(row.library_id)
+
+            path = self._getPath(row.folder_id) #+ "/" + row.model_name
+            model.Directory = path
+
+            inherits = self._getInherits(uuid)
+            for inherit in inherits:
+                model.addInheritance(inherit)
+
+            properties = self._getModelProperties(uuid)
+            for property in properties:
+                model.addProperty(property)
+
+            return ModelObjectType(library.name, model)
+
+        except DatabaseModelNotFound as notFound:
+            # Rethrow
+            raise notFound
+        except Exception as ex:
+            print("Unable to get model:", ex)
+            raise DatabaseModelNotFound(ex)
+
+    def createModel(self, libraryName, path, model):
+        try:
+            libraryIndex = self._findLibrary(libraryName)
+            if libraryIndex > 0:
+                self._createModel(libraryIndex, path, model)
+        except DatabaseModelExistsError as exists:
+            # Rethrow
+            raise exists
+        except Exception as ex:
+            # print("Exception '{}'".format(type(ex).__name__))
+            print("Unable to create model:", ex)
+            raise DatabaseModelCreationError(ex)
+
+    def updateModel(self, libraryName, path, model):
+        try:
+            libraryIndex = self._findLibrary(libraryName)
+            if libraryIndex > 0:
+                self._updateModel(libraryIndex, path, model)
+        except DatabaseModelNotFound as exists:
+            # Rethrow
+            raise exists
+        except Exception as ex:
+            print("Unable to update model:", ex)
+            raise DatabaseModelUpdateError(ex)
 
     def _createModelPropertyColumn(self, propertyId, property, libraryIndex):
         cursor = self._cursor()
@@ -359,19 +580,6 @@ class DatabaseMySQL(Database):
             self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
-    def createModel(self, libraryName, path, model):
-        try:
-            libraryIndex = self._findLibrary(libraryName)
-            if libraryIndex > 0:
-                self._createModel(libraryIndex, path, model)
-        except DatabaseModelExistsError as exists:
-            # Rethrow
-            raise exists
-        except Exception as ex:
-            # print("Exception '{}'".format(type(ex).__name__))
-            print("Unable to create model:", ex)
-            raise DatabaseModelCreationError(ex)
-
     def _updateModel(self, libraryIndex, path, model):
         cursor = self._cursor()
         pathIndex = self._createPath(libraryIndex, path)
@@ -417,17 +625,161 @@ class DatabaseMySQL(Database):
             self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
-    def updateModel(self, libraryName, path, model):
+    def _createInheritance(self, modelUUID, inheritUUID, libraryIndex):
+        cursor = self._cursor()
+        cursor.execute("SELECT model_inheritance_id FROM model_inheritance WHERE model_id "
+                                "= ? AND inherits_id = ?", modelUUID, inheritUUID)
+        row = cursor.fetchone()
+        if not row:
+            # Mass updates may insert models out of sequence creating a foreign key violation
+            self._foreignKeysIgnore(cursor)
+            cursor.execute("INSERT INTO model_inheritance (model_id, inherits_id) "
+                                    "VALUES (?, ?)", modelUUID, inheritUUID)
+            self._foreignKeysRestore(cursor)
+            self._updateTimestamp(cursor, libraryIndex)
+        self._connection.commit()
+
+    def _getInherits(self, uuid):
+        inherits = []
+        cursor = self._cursor()
+        cursor.execute("SELECT inherits_id FROM model_inheritance "
+                                    "WHERE model_id = ?",
+                       uuid)
+        rows = cursor.fetchall()
+        for row in rows:
+            inherits.append(row.inherits_id)
+
+        return inherits
+
+    def _getModelColumns(self, uuid, propertyName):
+        columns = []
+        cursor = self._cursor()
+        cursor.execute("SELECT model_property_id FROM model_property "
+                                    "WHERE model_id = ? AND model_property_name = ?",
+                       uuid, propertyName)
+        propertyId = 0
+        row = cursor.fetchone()
+        if row:
+            propertyId = row.model_property_id
+            cursor.execute("SELECT model_property_name, "
+                                    "model_property_display_name, model_property_type, "
+                                    "model_property_units, model_property_url, "
+                                    "model_property_description FROM model_property_column "
+                                    "WHERE model_property_id = ?",
+                        propertyId)
+
+            rows = cursor.fetchall()
+            for row in rows:
+                prop = Materials.ModelProperty()
+                prop.Name = row.model_property_name
+                prop.DisplayName = row.model_property_display_name
+                prop.Type = row.model_property_type
+                prop.Units = row.model_property_units
+                prop.URL = row.model_property_url
+                prop.Description = row.model_property_description
+
+                columns.append(prop)
+
+        return columns
+
+    def _getModelProperties(self, uuid):
+        properties = []
+        cursor = self._cursor()
+        cursor.execute("SELECT model_property_name, "
+                                    "model_property_display_name, model_property_type, "
+                                    "model_property_units, model_property_url, "
+                                    "model_property_description FROM model_property "
+                                    "WHERE model_id = ?",
+                       uuid)
+
+        rows = cursor.fetchall()
+        for row in rows:
+            prop = Materials.ModelProperty()
+            prop.Name = row.model_property_name
+            prop.DisplayName = row.model_property_display_name
+            prop.Type = row.model_property_type
+            prop.Units = row.model_property_units
+            prop.URL = row.model_property_url
+            prop.Description = row.model_property_description
+
+            properties.append(prop)
+
+        # This has to happen after the properties are retrieved to prevent nested queries
+        for property in properties:
+            columns = self._getModelColumns(uuid, property.Name)
+            for column in columns:
+                property.addColumn(column)
+
+        return properties
+
+    #
+    # Material methods
+    #
+
+    def getMaterial(self, uuid):
+        try:
+            cursor = self._cursor()
+            cursor.execute("SELECT library_id, folder_id, material_name, "
+                                "material_author, material_license, material_parent_uuid, "
+                                "material_description, material_url, material_reference FROM "
+                                "material WHERE material_id = ?",
+                        uuid)
+
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseMaterialNotFound()
+            material = Materials.Material()
+            # material.UUID = uuid
+            material.Name = row.material_name
+            material.Author = row.material_author
+            material.License = row.material_license
+            material.Parent = row.material_parent_uuid
+            material.Description = row.material_description
+            material.URL = row.material_url
+            material.Reference = row.material_reference
+
+            library = self._getLibrary(row.library_id)
+
+            path = self._getPath(row.folder_id) #+ "/" + row.material_name
+            material.Directory = path
+
+            tags = self._getTags(uuid)
+            for tag in tags:
+                material.addTag(tag)
+
+            for model in self._getMaterialModels(uuid, True):
+                material.addPhysicalModel(model)
+
+            for model in self._getMaterialModels(uuid, False):
+                material.addAppearanceModel(model)
+
+            # self.addModelProperties(material)
+
+            # The actual properties are set by the model. We just need to load the values
+            properties = self._getMaterialProperties(uuid)
+            for name, value in properties.items():
+                material.setValue(name, value)
+
+            return (uuid, library, material)
+
+        except DatabaseMaterialNotFound as notFound:
+            # Rethrow
+            raise notFound
+        except Exception as ex:
+            print("Unable to get material:", ex)
+            raise DatabaseMaterialNotFound(ex)
+
+    def createMaterial(self, libraryName, path, material):
         try:
             libraryIndex = self._findLibrary(libraryName)
             if libraryIndex > 0:
-                self._updateModel(libraryIndex, path, model)
-        except DatabaseModelNotFound as exists:
+                self._createMaterial(libraryIndex, path, material)
+        except DatabaseMaterialExistsError as exists:
             # Rethrow
             raise exists
         except Exception as ex:
-            print("Unable to update model:", ex)
-            raise DatabaseModelUpdateError(ex)
+            print("Unable to create material:", ex)
+            raise DatabaseMaterialCreationError(ex)
 
     def _createTag(self, materialUUID, tag, libraryIndex):
         tagId = 0
@@ -450,6 +802,19 @@ class DatabaseMySQL(Database):
                           "VALUES (?, ?)", materialUUID, tagId)
             self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
+
+    def _getTags(self, uuid):
+        tags = []
+        cursor = self._cursor()
+        cursor.execute("SELECT t.material_tag_name FROM material_tag t, material_tag_mapping m "
+                          "WHERE m.material_id = ? AND m.material_tag_id = t.material_tag_id",
+                       uuid)
+
+        rows = cursor.fetchall()
+        for row in rows:
+            tags.append(row.material_tag_name)
+
+        return tags
 
     def _createMaterialModel(self, materialUUID, modelUUID, libraryIndex):
         cursor = self._cursor()
@@ -658,250 +1023,6 @@ class DatabaseMySQL(Database):
 
         self._connection.commit()
 
-    def createMaterial(self, libraryName, path, material):
-        try:
-            libraryIndex = self._findLibrary(libraryName)
-            if libraryIndex > 0:
-                self._createMaterial(libraryIndex, path, material)
-        except DatabaseMaterialExistsError as exists:
-            # Rethrow
-            raise exists
-        except Exception as ex:
-            print("Unable to create material:", ex)
-            raise DatabaseMaterialCreationError(ex)
-
-    def getLibraries(self):
-        libraries = []
-        cursor = self._cursor()
-        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified FROM "
-                                    "library")
-        rows = cursor.fetchall()
-        for row in rows:
-            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-            #                   row.library_modified))
-            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified)))
-
-        return libraries
-
-    def getModelLibraries(self):
-        libraries = []
-        cursor = self._cursor()
-        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only, l.library_modified"
-                       " FROM library l, model m WHERE l.library_id = m.library_id")
-        rows = cursor.fetchall()
-        for row in rows:
-            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-            #                   row.library_modified))
-            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified)))
-
-        return libraries
-
-    def getMaterialLibraries(self):
-        libraries = []
-        cursor = self._cursor()
-        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only, l.library_modified"
-                       " FROM library l, material m WHERE l.library_id = m.library_id")
-        rows = cursor.fetchall()
-        for row in rows:
-            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-            #                   row.library_modified))
-            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified)))
-
-        return libraries
-
-    def getLibrary(self, name):
-        libraries = []
-        cursor = self._cursor()
-        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified"
-                       " FROM library WHERE library_name = ?", name)
-
-        row = cursor.fetchone()
-        if row:
-            # return MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-            #                   row.library_modified)
-            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified))
-        return None
-
-    def _getLibrary(self, libraryId):
-        cursor = self._cursor()
-        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified "
-                                    "FROM library WHERE library_id = ?",
-                       libraryId)
-        row = cursor.fetchone()
-        if row:
-            # return (row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only)
-            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified))
-        return None
-
-    def _getPath(self, folderId):
-        path = ""
-        cursor = self._cursor()
-        cursor.execute("""WITH RECURSIVE subordinate AS (
-                        SELECT
-                            folder_id,
-                            folder_name,
-                            parent_id
-                        FROM folder
-                        WHERE folder_id = ?
-
-                        UNION ALL
-
-                        SELECT
-                            e.folder_id,
-                            e.folder_name,
-                            e.parent_id
-                        FROM folder e
-                        JOIN subordinate s
-                        ON e.folder_id = s.parent_id
-                        )
-                        SELECT
-                            folder_name
-                        FROM subordinate
-                        ORDER BY folder_id ASC;""",
-                       folderId)
-        rows = cursor.fetchall()
-        first = True
-        for row in rows:
-            if first:
-                path = row.folder_name
-                first = False
-            else:
-                path += "/" + row.folder_name
-        return path
-
-    def _getInherits(self, uuid):
-        inherits = []
-        cursor = self._cursor()
-        cursor.execute("SELECT inherits_id FROM model_inheritance "
-                                    "WHERE model_id = ?",
-                       uuid)
-        rows = cursor.fetchall()
-        for row in rows:
-            inherits.append(row.inherits_id)
-
-        return inherits
-
-    def _getModelColumns(self, uuid, propertyName):
-        columns = []
-        cursor = self._cursor()
-        cursor.execute("SELECT model_property_id FROM model_property "
-                                    "WHERE model_id = ? AND model_property_name = ?",
-                       uuid, propertyName)
-        propertyId = 0
-        row = cursor.fetchone()
-        if row:
-            propertyId = row.model_property_id
-            cursor.execute("SELECT model_property_name, "
-                                    "model_property_display_name, model_property_type, "
-                                    "model_property_units, model_property_url, "
-                                    "model_property_description FROM model_property_column "
-                                    "WHERE model_property_id = ?",
-                        propertyId)
-
-            rows = cursor.fetchall()
-            for row in rows:
-                prop = Materials.ModelProperty()
-                prop.Name = row.model_property_name
-                prop.DisplayName = row.model_property_display_name
-                prop.Type = row.model_property_type
-                prop.Units = row.model_property_units
-                prop.URL = row.model_property_url
-                prop.Description = row.model_property_description
-
-                columns.append(prop)
-
-        return columns
-
-    def _getModelProperties(self, uuid):
-        properties = []
-        cursor = self._cursor()
-        cursor.execute("SELECT model_property_name, "
-                                    "model_property_display_name, model_property_type, "
-                                    "model_property_units, model_property_url, "
-                                    "model_property_description FROM model_property "
-                                    "WHERE model_id = ?",
-                       uuid)
-
-        rows = cursor.fetchall()
-        for row in rows:
-            prop = Materials.ModelProperty()
-            prop.Name = row.model_property_name
-            prop.DisplayName = row.model_property_display_name
-            prop.Type = row.model_property_type
-            prop.Units = row.model_property_units
-            prop.URL = row.model_property_url
-            prop.Description = row.model_property_description
-
-            properties.append(prop)
-
-        # This has to happen after the properties are retrieved to prevent nested queries
-        for property in properties:
-            columns = self._getModelColumns(uuid, property.Name)
-            for column in columns:
-                property.addColumn(column)
-
-        return properties
-
-    def getModel(self, uuid):
-        try:
-            cursor = self._cursor()
-            cursor.execute("SELECT library_id, folder_id, model_type, "
-                "model_name, model_url, model_description, model_doi FROM model WHERE model_id = ?",
-                        uuid)
-
-            row = cursor.fetchone()
-            if not row:
-                raise DatabaseModelNotFound()
-
-            model = Materials.Model()
-            # model.UUID = uuid
-            model.Type = row.model_type
-            model.Name = row.model_name
-            model.URL = row.model_url
-            model.Description = row.model_description
-            model.DOI = row.model_doi
-
-            # model.Library = self._getLibrary(row.library_id)
-            library = self._getLibrary(row.library_id)
-
-            path = self._getPath(row.folder_id) #+ "/" + row.model_name
-            model.Directory = path
-
-            inherits = self._getInherits(uuid)
-            for inherit in inherits:
-                model.addInheritance(inherit)
-
-            properties = self._getModelProperties(uuid)
-            for property in properties:
-                model.addProperty(property)
-
-            return ModelObjectType(library.name, model)
-
-        except DatabaseModelNotFound as notFound:
-            # Rethrow
-            raise notFound
-        except Exception as ex:
-            print("Unable to get model:", ex)
-            raise DatabaseModelNotFound(ex)
-
-    def _getTags(self, uuid):
-        tags = []
-        cursor = self._cursor()
-        cursor.execute("SELECT t.material_tag_name FROM material_tag t, material_tag_mapping m "
-                          "WHERE m.material_id = ? AND m.material_tag_id = t.material_tag_id",
-                       uuid)
-
-        rows = cursor.fetchall()
-        for row in rows:
-            tags.append(row.material_tag_name)
-
-        return tags
-
     def _getMaterialModels(self, uuid, isPhysical):
         models = []
         cursor = self._cursor()
@@ -1072,62 +1193,13 @@ class DatabaseMySQL(Database):
             properties[key] = self._getMaterialPropertyValue(value[0], value[1])
 
         return properties
+    
+    #
+    # Support methods
+    #
 
-    def getMaterial(self, uuid):
-        try:
-            cursor = self._cursor()
-            cursor.execute("SELECT library_id, folder_id, material_name, "
-                                "material_author, material_license, material_parent_uuid, "
-                                "material_description, material_url, material_reference FROM "
-                                "material WHERE material_id = ?",
-                        uuid)
+    def _foreignKeysIgnore(self, cursor):
+        cursor.execute("SET FOREIGN_KEY_CHECKS=0")
 
-            row = cursor.fetchone()
-            if not row:
-                raise DatabaseMaterialNotFound()
-            material = Materials.Material()
-            # material.UUID = uuid
-            material.Name = row.material_name
-            material.Author = row.material_author
-            material.License = row.material_license
-            material.Parent = row.material_parent_uuid
-            material.Description = row.material_description
-            material.URL = row.material_url
-            material.Reference = row.material_reference
-
-            library = self._getLibrary(row.library_id)
-
-            path = self._getPath(row.folder_id) #+ "/" + row.material_name
-            material.Directory = path
-
-            tags = self._getTags(uuid)
-            for tag in tags:
-                material.addTag(tag)
-
-            for model in self._getMaterialModels(uuid, True):
-                material.addPhysicalModel(model)
-
-            for model in self._getMaterialModels(uuid, False):
-                material.addAppearanceModel(model)
-
-            # self.addModelProperties(material)
-
-            # The actual properties are set by the model. We just need to load the values
-            properties = self._getMaterialProperties(uuid)
-            for name, value in properties.items():
-                material.setValue(name, value)
-
-            return (uuid, library, material)
-
-        except DatabaseMaterialNotFound as notFound:
-            # Rethrow
-            raise notFound
-        except Exception as ex:
-            print("Unable to get material:", ex)
-            raise DatabaseMaterialNotFound(ex)
-
-    # def addModelProperties(self, material):
-    #     print("addModelProperties()")
-    #     print("{} Physical models".format(len(material.PhysicalModels)))
-    #     print("{} Appearance models".format(len(material.AppearanceModels)))
-    #     print("{} Properties".format(len(material.PropertyObjects)))
+    def _foreignKeysRestore(self, cursor):
+        cursor.execute("SET FOREIGN_KEY_CHECKS=1")

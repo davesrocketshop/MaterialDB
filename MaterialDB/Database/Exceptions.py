@@ -72,6 +72,28 @@ class DatabaseLibraryNotFound(Exception):
             return repr(self._error)
         return repr(self.msg)
 
+class DatabaseLibraryReadOnlyError(Exception):
+
+    def __init__(self, msg="Library is read only", error=None):
+        self._error = error
+        self.msg = msg
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
+
+#---
+#
+# Folder errors
+#
+#---
+
+class DatabaseFolderCreationError(Exception):
+
+    def __init__(self, error):
+        self._error = error
+
 #---
 #
 # Model errors
