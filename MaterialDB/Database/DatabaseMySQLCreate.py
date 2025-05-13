@@ -33,14 +33,14 @@ class DatabaseMySQLCreate(DatabaseMySQL):
 
         # See Resources/db/create_tables.sql
         self._tables = {
-            "library" : """CREATE TABLE library (
+            "library" : """CREATE TABLE IF NOT EXISTS library (
                             library_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                             library_name VARCHAR(512) NOT NULL UNIQUE,
                             library_icon BLOB,
                             library_read_only TINYINT(1) NOT NULL DEFAULT 0,
 	                        library_modified DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                         )""",
-            "folder" :  """CREATE TABLE folder (
+            "folder" :  """CREATE TABLE IF NOT EXISTS folder (
                             folder_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                             folder_name VARCHAR(512) NOT NULL,
                             library_id INTEGER NOT NULL,
@@ -51,7 +51,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             FOREIGN KEY (parent_id)
                                 REFERENCES folder(folder_id)
                         )""",
-            "model" :   """CREATE TABLE model (
+            "model" :   """CREATE TABLE IF NOT EXISTS model (
                             model_id CHAR(36) NOT NULL PRIMARY KEY,
                             library_id INTEGER NOT NULL,
                             folder_id INTEGER,
@@ -67,7 +67,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                                 REFERENCES folder(folder_id)
                                 ON DELETE CASCADE
                         )""",
-            "model_inheritance" : """CREATE TABLE model_inheritance (
+            "model_inheritance" : """CREATE TABLE IF NOT EXISTS model_inheritance (
                             model_inheritance_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                             model_id CHAR(36) NOT NULL,
                             inherits_id CHAR(36) NOT NULL,
@@ -78,7 +78,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                                 REFERENCES model(model_id)
                                 ON DELETE RESTRICT
                         )""",
-            "model_property" : """CREATE TABLE model_property (
+            "model_property" : """CREATE TABLE IF NOT EXISTS model_property (
                             model_property_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                             model_id CHAR(36) NOT NULL,
                             model_property_name VARCHAR(255) NOT NULL,
@@ -91,7 +91,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                                 REFERENCES model(model_id)
                                 ON DELETE CASCADE
                         )""",
-            "model_property_column" : """CREATE TABLE model_property_column (
+            "model_property_column" : """CREATE TABLE IF NOT EXISTS model_property_column (
                             model_property_column_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                             model_property_id INTEGER NOT NULL,
                             model_property_name VARCHAR(255) NOT NULL,
@@ -104,7 +104,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                                 REFERENCES model_property(model_property_id)
                                 ON DELETE CASCADE
                         )""",
-            "material" : """CREATE TABLE material (
+            "material" : """CREATE TABLE IF NOT EXISTS material (
                             material_id CHAR(36) NOT NULL PRIMARY KEY,
                             library_id INTEGER NOT NULL,
                             folder_id INTEGER,
@@ -125,11 +125,11 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                                 REFERENCES material(material_id)
                                 ON DELETE RESTRICT
                         )""",
-            "material_tag" : """CREATE TABLE material_tag (
+            "material_tag" : """CREATE TABLE IF NOT EXISTS material_tag (
                             material_tag_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                             material_tag_name VARCHAR(255) NOT NULL UNIQUE KEY
                         )""",
-            "material_tag_mapping" : """CREATE TABLE material_tag_mapping (
+            "material_tag_mapping" : """CREATE TABLE IF NOT EXISTS material_tag_mapping (
                         material_id CHAR(36) NOT NULL,
                         material_tag_id INTEGER NOT NULL,
                         FOREIGN KEY (material_id)
@@ -139,7 +139,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             REFERENCES material_tag(material_tag_id)
                             ON DELETE CASCADE
                     )""",
-            "material_models" : """CREATE TABLE material_models (
+            "material_models" : """CREATE TABLE IF NOT EXISTS material_models (
                         material_id CHAR(36) NOT NULL,
                         model_id CHAR(36) NOT NULL,
                         FOREIGN KEY (material_id)
@@ -149,7 +149,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             REFERENCES model(model_id)
                             ON DELETE CASCADE
                     )""",
-            "material_property_value" : """CREATE TABLE material_property_value (
+            "material_property_value" : """CREATE TABLE IF NOT EXISTS material_property_value (
                         material_property_value_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                         material_id CHAR(36) NOT NULL,
                         material_property_name VARCHAR(255) NOT NULL,
@@ -158,7 +158,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             REFERENCES material(material_id)
                             ON DELETE CASCADE
                     )""",
-            "material_property_string_value" : """CREATE TABLE material_property_string_value (
+            "material_property_string_value" : """CREATE TABLE IF NOT EXISTS material_property_string_value (
                         material_property_string_value_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                         material_property_value_id INTEGER NOT NULL,
                         material_property_value TEXT NOT NULL,
@@ -166,7 +166,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             REFERENCES material_property_value(material_property_value_id)
                             ON DELETE CASCADE
                     )""",
-            "material_property_long_string_value" : """CREATE TABLE material_property_long_string_value (
+            "material_property_long_string_value" : """CREATE TABLE IF NOT EXISTS material_property_long_string_value (
                         material_property_long_string_value_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                         material_property_value_id INTEGER NOT NULL,
                         material_property_value MEDIUMTEXT NOT NULL,
@@ -174,7 +174,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             REFERENCES material_property_value(material_property_value_id)
                             ON DELETE CASCADE
                     )""",
-            "material_property_array_description" : """CREATE TABLE material_property_array_description (
+            "material_property_array_description" : """CREATE TABLE IF NOT EXISTS material_property_array_description (
                             material_property_array_description_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                             material_property_value_id INTEGER NOT NULL,
                             material_property_array_rows INTEGER NOT NULL,
@@ -184,7 +184,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                                 REFERENCES material_property_value(material_property_value_id)
                                 ON DELETE CASCADE
                         )""",
-            "material_property_array_value" : """CREATE TABLE material_property_array_value (
+            "material_property_array_value" : """CREATE TABLE IF NOT EXISTS material_property_array_value (
                         material_property_array_value_id INTEGER AUTO_INCREMENT NOT NULL PRIMARY KEY,
                         material_property_value_id INTEGER NOT NULL,
                         material_property_value_row INTEGER NOT NULL,
@@ -198,7 +198,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                     )"""
         }
         self._functions = {
-            "GetFolder" : """CREATE FUNCTION GetFolder(id INTEGER)
+            "GetFolder" : """CREATE FUNCTION IF NOT EXISTS GetFolder(id INTEGER)
                         RETURNS VARCHAR(1024) DETERMINISTIC
                     BEGIN
                         DECLARE folderName VARCHAR(1024);
@@ -221,9 +221,8 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                         ON e.folder_id = s.parent_id
                         )
                         SELECT
-                            group_concat(folder_name SEPARATOR '/')
+                            group_concat(folder_name ORDER BY folder_id ASC SEPARATOR '/')
                         FROM subordinate
-                        ORDER BY folder_id ASC
                         INTO folderName;
                         RETURN folderName;
                     END"""

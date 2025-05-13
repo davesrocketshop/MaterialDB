@@ -185,19 +185,15 @@ class DatabaseMySQL(Database):
             if not row:
                 raise DatabaseLibraryNotFound()
 
-            cursor.execute("SELECT m.model_id, m.folder_id, m.model_name"
+            cursor.execute("SELECT m.model_id, GetFolder(m.folder_id) as folder_name, m.model_name"
                            " FROM model m, library l"
                            " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
             rows = cursor.fetchall()
             for row in rows:
-                models.append((row.model_id, row.folder_id, row.model_name))
-
-            pathModels = []
-            for model in models:
                 # Convert the folder_id to a path
-                pathModels.append(MaterialLibraryObjectType(model[0], self._getPath(model[1]), model[2]))
+                models.append(MaterialLibraryObjectType(row.model_id, row.folder_name, row.model_name))
 
-            return pathModels
+            return models
         except Exception as ex:
             print("Unable to get library models:", ex)
             raise DatabaseModelNotFound(ex)
@@ -245,9 +241,8 @@ class DatabaseMySQL(Database):
                     folderTree[row.folder_id] = "/" + row.folder_name
                 else:
                     folderTree[row.folder_id] = folderTree[row.parent_id] + "/" + row.folder_name
-            print(folderTree)
 
-            return folderTree.items
+            return list(folderTree.values())
         except Exception as ex:
             print("Unable to get library folders:", ex)
             raise DatabaseMaterialNotFound(ex)
@@ -361,6 +356,12 @@ class DatabaseMySQL(Database):
 
     def _createPath(self, libraryIndex, path):
         newId = 0
+
+        # Strip any leading "/"
+        if len(path) > 0 and path[0] == '/':
+            path = path[1:]
+            print(path)
+
         pathList = path.split('/')
         if len(pathList) > 0:
             return self._createPathRecursive(libraryIndex, 0, 0, pathList)
@@ -409,7 +410,7 @@ class DatabaseMySQL(Database):
     def getModel(self, uuid):
         try:
             cursor = self._cursor()
-            cursor.execute("SELECT library_id, folder_id, model_type, "
+            cursor.execute("SELECT library_id, GetFolder(folder_id) as folder_name, model_type, "
                 "model_name, model_url, model_description, model_doi FROM model WHERE model_id = ?",
                         uuid)
 
@@ -421,15 +422,13 @@ class DatabaseMySQL(Database):
             # model.UUID = uuid
             model.Type = row.model_type
             model.Name = row.model_name
+            model.Directory = row.folder_name
             model.URL = row.model_url
             model.Description = row.model_description
             model.DOI = row.model_doi
 
             # model.Library = self._getLibrary(row.library_id)
             library = self._getLibrary(row.library_id)
-
-            path = self._getPath(row.folder_id) #+ "/" + row.model_name
-            model.Directory = path
 
             inherits = self._getInherits(uuid)
             for inherit in inherits:
@@ -719,7 +718,7 @@ class DatabaseMySQL(Database):
     def getMaterial(self, uuid):
         try:
             cursor = self._cursor()
-            cursor.execute("SELECT library_id, folder_id, material_name, "
+            cursor.execute("SELECT library_id, GetFolder(folder_id) as folder_name, material_name, "
                                 "material_author, material_license, material_parent_uuid, "
                                 "material_description, material_url, material_reference FROM "
                                 "material WHERE material_id = ?",
@@ -731,6 +730,7 @@ class DatabaseMySQL(Database):
             material = Materials.Material()
             # material.UUID = uuid
             material.Name = row.material_name
+            material.Directory = row.folder_name
             material.Author = row.material_author
             material.License = row.material_license
             material.Parent = row.material_parent_uuid
@@ -739,9 +739,6 @@ class DatabaseMySQL(Database):
             material.Reference = row.material_reference
 
             library = self._getLibrary(row.library_id)
-
-            path = self._getPath(row.folder_id) #+ "/" + row.material_name
-            material.Directory = path
 
             tags = self._getTags(uuid)
             for tag in tags:

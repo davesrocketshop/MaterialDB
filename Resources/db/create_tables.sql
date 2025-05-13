@@ -221,9 +221,8 @@ BEGIN
 	  ON e.folder_id = s.parent_id
 	)
 	SELECT
-		group_concat(folder_name SEPARATOR '/')
+		group_concat(folder_name ORDER BY folder_id ASC SEPARATOR '/')
 	FROM subordinate
-	ORDER BY folder_id ASC
 	INTO folderName;
 	RETURN folderName;
 END//
