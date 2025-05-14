@@ -105,20 +105,19 @@ class DatabaseMySQL(Database):
                               str(row.library_modified))
         return None
 
-    def createLibrary(self, name, icon, iconPath, readOnly):
+    def createLibrary(self, name, icon, readOnly):
         try:
             cursor = self._cursor()
 
             cursor.execute("SELECT library_id, library_icon, library_read_only FROM library WHERE library_name = ?", name)
             row = cursor.fetchone()
             if not row:
-                iconBytes = self._getIcon(icon, iconPath)
-                if iconBytes is None or len(iconBytes) == 0:
+                if icon is None or len(icon) == 0:
                     cursor.execute("INSERT INTO library (library_name, library_read_only) "
                                         "VALUES (?, ?)", name, readOnly)
                 else:
                     cursor.execute("INSERT INTO library (library_name, library_icon, library_read_only) "
-                            "VALUES (?, ?, ?)", name, iconBytes, readOnly)
+                            "VALUES (?, ?, ?)", name, icon, readOnly)
                 self._connection.commit()
             else:
                 # Check that everthing matches
@@ -1190,7 +1189,7 @@ class DatabaseMySQL(Database):
             properties[key] = self._getMaterialPropertyValue(value[0], value[1])
 
         return properties
-    
+
     #
     # Support methods
     #
