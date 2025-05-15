@@ -52,57 +52,45 @@ class DatabaseMySQL(Database):
     def getLibraries(self):
         libraries = []
         cursor = self._cursor()
-        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified FROM "
+        cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
                                     "library")
         rows = cursor.fetchall()
         for row in rows:
-            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-            #                   row.library_modified))
-            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified)))
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only))
 
         return libraries
 
     def getModelLibraries(self):
         libraries = []
         cursor = self._cursor()
-        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only, l.library_modified"
+        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only"
                        " FROM library l, model m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
         for row in rows:
-            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-            #                   row.library_modified))
-            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified)))
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only))
 
         return libraries
 
     def getMaterialLibraries(self):
         libraries = []
         cursor = self._cursor()
-        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only, l.library_modified"
+        cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only"
                        " FROM library l, material m WHERE l.library_id = m.library_id")
         rows = cursor.fetchall()
         for row in rows:
-            # libraries.append(MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-            #                   row.library_modified))
-            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified)))
+            libraries.append(MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only))
 
         return libraries
 
     def getLibrary(self, name):
         libraries = []
         cursor = self._cursor()
-        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified"
+        cursor.execute("SELECT library_name, library_icon, library_read_only"
                        " FROM library WHERE library_name = ?", name)
 
         row = cursor.fetchone()
         if row:
-            # return MaterialLibraryType(row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only,
-            #                   row.library_modified)
-            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified))
+            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only)
         return None
 
     def createLibrary(self, name, icon, readOnly):
@@ -247,9 +235,6 @@ class DatabaseMySQL(Database):
             raise DatabaseMaterialNotFound(ex)
 
 
-    def _updateTimestamp(self, cursor, libraryIndex):
-        cursor.execute("UPDATE library SET library_modified = NOW() WHERE library_id = ?", libraryIndex)
-
     def _findLibrary(self, name):
         cursor = self._cursor()
 
@@ -274,14 +259,12 @@ class DatabaseMySQL(Database):
 
     def _getLibrary(self, libraryId):
         cursor = self._cursor()
-        cursor.execute("SELECT library_name, library_icon, library_read_only, library_modified "
+        cursor.execute("SELECT library_name, library_icon, library_read_only "
                                     "FROM library WHERE library_id = ?",
                        libraryId)
         row = cursor.fetchone()
         if row:
-            # return (row.library_name, row.library_icon.decode('UTF-8'), row.library_read_only)
-            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only,
-                              str(row.library_modified))
+            return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only)
         return None
 
     def _isReadOnly(self, libraryId):
@@ -333,7 +316,6 @@ class DatabaseMySQL(Database):
                 cursor.execute("INSERT INTO folder (folder_name, library_id) "
                                             "VALUES (?, ?)", pathList[pathIndex], libraryIndex)
                 newId = self._lastId(cursor)
-                self._updateTimestamp(cursor, libraryIndex)
         else:
             # First see if the folder exists
             cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
@@ -345,7 +327,6 @@ class DatabaseMySQL(Database):
                 cursor.execute("INSERT INTO folder (folder_name, library_id, parent_id) "
                                             "VALUES (?, ?, ?)", pathList[pathIndex], libraryIndex, parentIndex)
                 newId = self._lastId(cursor)
-                self._updateTimestamp(cursor, libraryIndex)
 
         self._connection.commit()
         index = pathIndex + 1
@@ -490,7 +471,6 @@ class DatabaseMySQL(Database):
                 property.URL,
                 property.Description
                 )
-            self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
     def _createModelProperty(self, modelUUID, property, libraryIndex):
@@ -518,7 +498,6 @@ class DatabaseMySQL(Database):
             propertyId = self._lastId(cursor)
             for column in property.Columns:
                 self._createModelPropertyColumn(propertyId, column, libraryIndex)
-            self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
     def _updateModelProperty(self, modelUUID, property, libraryIndex):
@@ -546,7 +525,6 @@ class DatabaseMySQL(Database):
             propertyId = self._lastId(cursor)
             for column in property.Columns:
                 self._createModelPropertyColumn(propertyId, column, libraryIndex)
-            self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
     def _createModel(self, libraryIndex, path, model):
@@ -575,7 +553,6 @@ class DatabaseMySQL(Database):
 
             for property in model.Properties.values():
                 self._createModelProperty(model.UUID, property, libraryIndex)
-            self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
     def _updateModel(self, libraryIndex, path, model):
@@ -620,7 +597,6 @@ class DatabaseMySQL(Database):
 
             for property in model.Properties.values():
                 self._updateModelProperty(model.UUID, property, libraryIndex)
-            self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
     def _createInheritance(self, modelUUID, inheritUUID, libraryIndex):
@@ -634,7 +610,6 @@ class DatabaseMySQL(Database):
             cursor.execute("INSERT INTO model_inheritance (model_id, inherits_id) "
                                     "VALUES (?, ?)", modelUUID, inheritUUID)
             self._foreignKeysRestore(cursor)
-            self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
     def _getInherits(self, uuid):
@@ -788,7 +763,6 @@ class DatabaseMySQL(Database):
             cursor.execute("INSERT INTO material_tag (material_tag_name) "
                                     "VALUES (?)", tag)
             tagId = self._lastId(cursor)
-            self._updateTimestamp(cursor, libraryIndex)
 
         cursor.execute("SELECT material_id, material_tag_id FROM material_tag_mapping "
                                 "WHERE material_id = ? AND material_tag_id = ?", materialUUID, tagId)
@@ -796,7 +770,6 @@ class DatabaseMySQL(Database):
         if not row:
             cursor.execute("INSERT INTO material_tag_mapping (material_id, material_tag_id) "
                           "VALUES (?, ?)", materialUUID, tagId)
-            self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
     def _getTags(self, uuid):
@@ -820,7 +793,6 @@ class DatabaseMySQL(Database):
         if not row:
             cursor.execute("INSERT INTO material_models (material_id, model_id) "
                                     "VALUES (?, ?)", materialUUID, modelUUID)
-            self._updateTimestamp(cursor, libraryIndex)
         self._connection.commit()
 
     def _createMaterialPropertyValue(self, materialUUID, name, type, libraryIndex):
@@ -828,7 +800,6 @@ class DatabaseMySQL(Database):
         cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, material_property_type) "
                     "VALUES (?, ?, ?)",
                     materialUUID, name, type)
-        self._updateTimestamp(cursor, libraryIndex)
 
         return self._lastId(cursor)
 
@@ -841,7 +812,6 @@ class DatabaseMySQL(Database):
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, ?)",
                         value_id, value)
-            self._updateTimestamp(cursor, libraryIndex)
             self._connection.commit()
 
     def _createLongStringValue(self, materialUUID, name, type, value, libraryIndex):
@@ -853,7 +823,6 @@ class DatabaseMySQL(Database):
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, ?)",
                         value_id, value)
-            self._updateTimestamp(cursor, libraryIndex)
             self._connection.commit()
 
     def _createListValue(self, materialUUID, name, type, list, libraryIndex):
@@ -867,7 +836,6 @@ class DatabaseMySQL(Database):
                             " VALUES (?, ?)",
                             value_id, entry)
 
-            self._updateTimestamp(cursor, libraryIndex)
             self._connection.commit()
 
     def _createLongListValue(self, materialUUID, name, type, list, libraryIndex):
@@ -881,7 +849,6 @@ class DatabaseMySQL(Database):
                             " VALUES (?, ?)",
                             value_id, entry)
 
-            self._updateTimestamp(cursor, libraryIndex)
             self._connection.commit()
 
     def _createArrayValue3D(self, materialUUID, name, propertyType, array, libraryIndex):
@@ -915,7 +882,6 @@ class DatabaseMySQL(Database):
                                     " VALUES (?, ?, ?, ?, ?, ?)",
                                     value_id, row, column, depth, array.getRows(depth), value)
 
-            self._updateTimestamp(cursor, libraryIndex)
             self._connection.commit()
 
     def _createArrayValue2D(self, materialUUID, name, propertyType, array, libraryIndex):
@@ -941,7 +907,6 @@ class DatabaseMySQL(Database):
                                 " VALUES (?, ?, ?, ?)",
                                 value_id, row, column, value)
 
-            self._updateTimestamp(cursor, libraryIndex)
             self._connection.commit()
 
     def _createMaterialProperty(self, materialUUID, material, property, libraryIndex):
@@ -1015,7 +980,6 @@ class DatabaseMySQL(Database):
             # print("{} Properties".format(len(material.PropertyObjects)))
             for property in material.PropertyObjects.values():
                 self._createMaterialProperty(material.UUID, material, property, libraryIndex)
-            self._updateTimestamp(cursor, libraryIndex)
 
         self._connection.commit()
 
