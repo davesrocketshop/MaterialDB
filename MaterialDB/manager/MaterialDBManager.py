@@ -25,7 +25,8 @@ __url__ = "https://www.davesrocketshop.com"
 import Materials
 
 from MaterialAPI.MaterialManagerExternal import MaterialManagerExternal, \
-    MaterialLibraryType, MaterialLibraryObjectType, ModelObjectType
+    MaterialLibraryType, MaterialLibraryObjectType, ModelObjectType, \
+    MaterialObjectType
 
 from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
@@ -124,23 +125,23 @@ class MaterialsDBManager(MaterialManagerExternal):
         # print("updateModel('{}', '{}', '{}')".format(libraryName, path, model.Name))
         self._db.updateModel(libraryName, path, model)
 
-    def setModelPath(self, libraryName: str, path: str, model: Materials.Model) -> None:
-        print("setModelPath('{}', '{}', '{}')".format(libraryName, path, model.Name))
+    def setModelPath(self, libraryName: str, path: str, uuid: str) -> None:
+        print("setModelPath('{}', '{}', '{}')".format(libraryName, path, uuid))
 
-    def renameModel(self, libraryName: str, name: str, model: Materials.Model) -> None:
-        print("renameModel('{}', '{}', '{}')".format(libraryName, name, model.Name))
+    def renameModel(self, libraryName: str, name: str, uuid: str) -> None:
+        print("renameModel('{}', '{}', '{}')".format(libraryName, name, uuid))
 
-    def moveModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
-        print("moveModel('{}', '{}', '{}')".format(libraryName, path, model.Name))
+    def moveModel(self, libraryName: str, path: str, uuid: str) -> None:
+        print("moveModel('{}', '{}', '{}')".format(libraryName, path, uuid))
 
-    def removeModel(self, model: Materials.Model) -> None:
-        print("removeModel('{}')".format(model.Name))
+    def removeModel(self, uuid: str) -> None:
+        print("removeModel('{}')".format(uuid))
 
     #
     # Material methods
     #
 
-    def getMaterial(self, uuid: str) -> Materials.Material:
+    def getMaterial(self, uuid: str) -> MaterialObjectType:
         # print("getMaterial('{}')".format(uuid))
         return self._db.getMaterial(uuid)
 
@@ -160,14 +161,14 @@ class MaterialsDBManager(MaterialManagerExternal):
     def updateMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
         print("updateMaterial('{}', '{}', '{}')".format(libraryName, path, material.Name))
 
-    def setMaterialPath(self, libraryName: str, path: str, material: Materials.Material) -> None:
-        print("setMaterialPath('{}', '{}', '{}')".format(libraryName, path, material.Name))
+    def setMaterialPath(self, libraryName: str, path: str, uuid: str) -> None:
+        print("setMaterialPath('{}', '{}', '{}')".format(libraryName, path, uuid))
 
-    def renameMaterial(self, libraryName: str, name: str, material: Materials.Material) -> None:
-        print("renameMaterial('{}', '{}', '{}')".format(libraryName, name, material.Name))
+    def renameMaterial(self, libraryName: str, name: str, uuid: str) -> None:
+        print("renameMaterial('{}', '{}', '{}')".format(libraryName, name, uuid))
 
-    def moveMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
-        print("moveMaterial('{}', '{}', '{}')".format(libraryName, path, material.Name))
+    def moveMaterial(self, libraryName: str, path: str, uuid: str) -> None:
+        print("moveMaterial('{}', '{}', '{}')".format(libraryName, path, uuid))
 
-    def removeMaterial(self, material: Materials.Material) -> None:
-        print("removeMaterial('{}')".format(material.Name))
+    def removeMaterial(self, uuid: str) -> None:
+        print("removeMaterial('{}')".format(uuid))

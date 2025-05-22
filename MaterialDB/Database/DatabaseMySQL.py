@@ -29,7 +29,7 @@ from PySide.QtGui import QImage
 
 import Materials
 from MaterialAPI.MaterialManagerExternal import MaterialLibraryType, MaterialLibraryObjectType, \
-    ModelObjectType
+    ModelObjectType, MaterialObjectType
 from MaterialDB.Database.Database import Database
 from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
     DatabaseIconError, DatabaseLibraryNotFound, DatabaseLibraryReadOnlyError, \
@@ -731,7 +731,7 @@ class DatabaseMySQL(Database):
             for name, value in properties.items():
                 material.setValue(name, value)
 
-            return (uuid, library, material)
+            return MaterialObjectType(library.name, material)
 
         except DatabaseMaterialNotFound as notFound:
             # Rethrow
