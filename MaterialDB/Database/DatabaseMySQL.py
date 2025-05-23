@@ -49,7 +49,7 @@ class DatabaseMySQL(Database):
     # Library methods
     #
 
-    def getLibraries(self):
+    def getLibraries(self) -> list[MaterialLibraryType]:
         libraries = []
         cursor = self._cursor()
         cursor.execute("SELECT library_name, library_icon, library_read_only FROM "
@@ -60,7 +60,7 @@ class DatabaseMySQL(Database):
 
         return libraries
 
-    def getModelLibraries(self):
+    def getModelLibraries(self) -> list[MaterialLibraryType]:
         libraries = []
         cursor = self._cursor()
         cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only"
@@ -71,7 +71,7 @@ class DatabaseMySQL(Database):
 
         return libraries
 
-    def getMaterialLibraries(self):
+    def getMaterialLibraries(self) -> list[MaterialLibraryType]:
         libraries = []
         cursor = self._cursor()
         cursor.execute("SELECT DISTINCT l.library_name, l.library_icon, l.library_read_only"
@@ -82,30 +82,29 @@ class DatabaseMySQL(Database):
 
         return libraries
 
-    def getLibrary(self, name):
-        libraries = []
+    def getLibrary(self, libraryName: str) -> MaterialLibraryType:
         cursor = self._cursor()
         cursor.execute("SELECT library_name, library_icon, library_read_only"
-                       " FROM library WHERE library_name = ?", name)
+                       " FROM library WHERE library_name = ?", libraryName)
 
         row = cursor.fetchone()
         if row:
             return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only)
         return None
 
-    def createLibrary(self, name, icon, readOnly):
+    def createLibrary(self, libraryName: str, icon: bytes, readOnly: bool) -> None:
         try:
             cursor = self._cursor()
 
-            cursor.execute("SELECT library_id, library_icon, library_read_only FROM library WHERE library_name = ?", name)
+            cursor.execute("SELECT library_id, library_icon, library_read_only FROM library WHERE library_name = ?", libraryName)
             row = cursor.fetchone()
             if not row:
                 if icon is None or len(icon) == 0:
                     cursor.execute("INSERT INTO library (library_name, library_read_only) "
-                                        "VALUES (?, ?)", name, readOnly)
+                                        "VALUES (?, ?)", libraryName, readOnly)
                 else:
                     cursor.execute("INSERT INTO library (library_name, library_icon, library_read_only) "
-                            "VALUES (?, ?, ?)", name, icon, readOnly)
+                            "VALUES (?, ?, ?)", libraryName, icon, readOnly)
                 self._connection.commit()
             else:
                 # Check that everthing matches
@@ -119,10 +118,10 @@ class DatabaseMySQL(Database):
                         return
                 raise DatabaseLibraryCreationError("Library already exists")
         except Exception as ex:
-            print("Unable to create library '{}':".format(name), ex)
+            print("Unable to create library '{}':".format(libraryName), ex)
             raise DatabaseLibraryCreationError(ex)
 
-    def renameLibrary(self, oldName, newName):
+    def renameLibrary(self, oldName: str, newName: str) -> None:
         try:
             cursor = self._cursor()
 
@@ -139,42 +138,42 @@ class DatabaseMySQL(Database):
             print("Unable to rename library:", ex)
             raise DatabaseRenameError(ex)
 
-    def changeIcon(self, name, icon):
+    def changeIcon(self, libraryName: str, icon: bytes) -> None:
         try:
             cursor = self._cursor()
 
             cursor.execute("UPDATE library SET library_icon = ? "
-                                "WHERE library_name = ?", icon, name)
+                                "WHERE library_name = ?", icon, libraryName)
 
             self._connection.commit()
         except Exception as ex:
             print("Unable to change icon:", ex)
             raise DatabaseIconError(ex)
 
-    def removeLibrary(self, library):
+    def removeLibrary(self, libraryName: str) -> None:
         try:
             cursor = self._cursor()
 
-            cursor.execute("DELETE FROM library WHERE library_name = ?", library)
+            cursor.execute("DELETE FROM library WHERE library_name = ?", libraryName)
 
             self._connection.commit()
         except Exception as ex:
             print("Unable to remove library:", ex)
             raise DatabaseDeleteError(ex)
 
-    def libraryModels(self, library):
+    def libraryModels(self, libraryName: str) -> list[MaterialLibraryObjectType]:
         try:
             models = []
             cursor = self._cursor()
 
-            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", library)
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", libraryName)
             row = cursor.fetchone()
             if not row:
                 raise DatabaseLibraryNotFound()
 
             cursor.execute("SELECT m.model_id, GetFolder(m.folder_id) as folder_name, m.model_name"
                            " FROM model m, library l"
-                           " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
+                           " WHERE m.library_id = l.library_id AND l.library_name = ?", libraryName)
             rows = cursor.fetchall()
             for row in rows:
                 # Convert the folder_id to a path
@@ -185,19 +184,21 @@ class DatabaseMySQL(Database):
             print("Unable to get library models:", ex)
             raise DatabaseModelNotFound(ex)
 
-    def libraryMaterials(self, library):
+    def libraryMaterials(self, libraryName: str,
+                         filter: Materials.MaterialFilter = None,
+                         options: Materials.MaterialFilterOptions = None) -> list[MaterialLibraryObjectType]:
         try:
             materials = []
             cursor = self._cursor()
 
-            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", library)
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", libraryName)
             row = cursor.fetchone()
             if not row:
                 raise DatabaseLibraryNotFound()
 
             cursor.execute("SELECT m.material_id, GetFolder(m.folder_id) as folder_name, m.material_name"
                            " FROM material m, library l"
-                           " WHERE m.library_id = l.library_id AND l.library_name = ?", library)
+                           " WHERE m.library_id = l.library_id AND l.library_name = ?", libraryName)
             rows = cursor.fetchall()
             for row in rows:
                 materials.append(MaterialLibraryObjectType(row.material_id, row.folder_name, row.material_name))
@@ -243,6 +244,15 @@ class DatabaseMySQL(Database):
         if row:
             return row.library_id
         return 0
+    
+    def _findWriteableLibrary(self, name):
+        """ Finds the name library and ensures it's not read only """
+        libraryIndex = self._findLibrary(name)
+        if libraryIndex > 0:
+            if self._isReadOnly(libraryIndex):
+                raise DatabaseLibraryReadOnlyError()
+        else:
+            raise DatabaseLibraryNotFound()
 
     def _getIcon(self, icon, iconPath):
         if icon is None or len(icon) == 0:
@@ -283,22 +293,92 @@ class DatabaseMySQL(Database):
 
     def createFolder(self, libraryName: str, path: str) -> None:
         try:
-            libraryIndex = self._findLibrary(libraryName)
-            if libraryIndex > 0:
-                if self._isReadOnly(libraryIndex):
-                    raise DatabaseLibraryReadOnlyError()
-                self._createPath(libraryIndex, path)
-            else:
-                raise DatabaseLibraryNotFound()
+            libraryIndex = self._findWriteableLibrary(libraryName)
+            self._createPath(libraryIndex, path)
         except Exception as ex:
             print("Unable to create folder:", ex)
             raise DatabaseFolderCreationError(ex)
 
     def renameFolder(self, libraryName: str, oldPath: str, newPath: str) -> None:
-        pass
+        try:
+            libraryIndex = self._findWriteableLibrary(libraryName)
+
+            # Check the folders have the same parent path
+            oldPathList = self._pathList(oldPath)
+            newPathList = self._pathList(newPath)
+            if len(oldPathList) != len(newPathList):
+                raise DatabaseRenameError("Path lengths don't match")
+
+            parentIndex = 0 # start at the root
+            cursor = self._cursor()
+            if len(newPathList) > 0:
+                for index in range(0, len(newPathList) - 1):
+                    if oldPathList[index] != newPathList[index]:
+                        raise DatabaseRenameError("Path tree doesn't match")
+                    if parentIndex == 0:
+                        cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
+                            " AND parent_id IS NULL", oldPathList[index], libraryIndex)
+                    else:
+                        cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
+                            " AND parent_id IS ?", oldPathList[index], libraryIndex, parentIndex)
+                    row = cursor.fetchone()
+                    if row:
+                        parentIndex = row.folder_id
+                    else:
+                        raise DatabaseRenameError("Folder path doesn't exist")
+                if parentIndex == 0:
+                    cursor.execute("UPDATE folder "
+                                "SET folder_name = ? "
+                                "WHERE parent_id IS NULL AND folder_name = ?", newPathList[-1], oldPathList[-1])
+                else:
+                    cursor.execute("UPDATE folder "
+                                "SET folder_name = ? "
+                                "WHERE parent_id = ? AND folder_name = ?", newPathList[-1], parentIndex, oldPathList[-1])
+                if cursor.rowcount < 1:
+                    raise DatabaseRenameError("Unable to update folder path")
+
+        except Exception as ex:
+            raise ex
 
     def deleteRecursive(self, libraryName: str, path: str) -> None:
-        pass
+        try:
+            libraryIndex = self._findWriteableLibrary(libraryName)
+
+            pathList = self._pathList(path)
+            parentIndex = 0 # start at the root
+            cursor = self._cursor()
+            if len(pathList) > 0:
+                for index in range(0, len(pathList) - 1):
+                    if parentIndex == 0:
+                        cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
+                            " AND parent_id IS NULL", pathList[index], libraryIndex)
+                    else:
+                        cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
+                            " AND parent_id IS ?", pathList[index], libraryIndex, parentIndex)
+                    row = cursor.fetchone()
+                    if row:
+                        parentIndex = row.folder_id
+                    else:
+                        raise DatabaseDeleteError("Folder path doesn't exist")
+                if parentIndex == 0:
+                    cursor.execute("DELETE from folder "
+                                "WHERE parent_id IS NULL AND folder_name = ?", pathList[-1])
+                else:
+                    cursor.execute("DELETE from folder "
+                                "WHERE parent_id = ? AND folder_name = ?", parentIndex, pathList[-1])
+                if cursor.rowcount < 1:
+                    raise DatabaseDeleteError("Unable to delete folder")
+
+        except Exception as ex:
+            raise ex
+
+    def _pathList(self, path):
+        # Strip any leading "/"
+        if len(path) > 0 and path[0] == '/':
+            path = path[1:]
+            print(path)
+
+        return path.split('/')
 
     def _createPathRecursive(self, libraryIndex, parentIndex, pathIndex, pathList):
         newId = 0
@@ -337,12 +417,7 @@ class DatabaseMySQL(Database):
     def _createPath(self, libraryIndex, path):
         newId = 0
 
-        # Strip any leading "/"
-        if len(path) > 0 and path[0] == '/':
-            path = path[1:]
-            print(path)
-
-        pathList = path.split('/')
+        pathList = self._pathList(path)
         if len(pathList) > 0:
             return self._createPathRecursive(libraryIndex, 0, 0, pathList)
         return newId
@@ -387,7 +462,7 @@ class DatabaseMySQL(Database):
     # Model methods
     #
 
-    def getModel(self, uuid):
+    def getModel(self, uuid: str) -> ModelObjectType:
         try:
             cursor = self._cursor()
             cursor.execute("SELECT library_id, GetFolder(folder_id) as folder_name, model_type, "
@@ -427,7 +502,7 @@ class DatabaseMySQL(Database):
             print("Unable to get model:", ex)
             raise DatabaseModelNotFound(ex)
 
-    def createModel(self, libraryName, path, model):
+    def createModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
         try:
             libraryIndex = self._findLibrary(libraryName)
             if libraryIndex > 0:
@@ -440,17 +515,77 @@ class DatabaseMySQL(Database):
             print("Unable to create model:", ex)
             raise DatabaseModelCreationError(ex)
 
-    def updateModel(self, libraryName, path, model):
+    def updateModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
         try:
-            libraryIndex = self._findLibrary(libraryName)
-            if libraryIndex > 0:
-                self._updateModel(libraryIndex, path, model)
+            libraryIndex = self._findWriteableLibrary(libraryName)
+            self._updateModel(libraryIndex, path, model)
         except DatabaseModelNotFound as exists:
             # Rethrow
             raise exists
+        except DatabaseLibraryReadOnlyError as ro:
+            raise ro
         except Exception as ex:
             print("Unable to update model:", ex)
             raise DatabaseModelUpdateError(ex)
+        
+    def setModelPath(self, libraryName: str, path: str, uuid: str) -> None:
+        try:
+            libraryIndex = self._findWriteableLibrary(libraryName)
+            self._updateModelPath(libraryIndex, path, uuid)
+        except DatabaseModelNotFound as exists:
+            # Rethrow
+            raise exists
+        except DatabaseLibraryReadOnlyError as ro:
+            raise ro
+        except Exception as ex:
+            print("Unable to update model:", ex)
+            raise DatabaseModelUpdateError(ex)
+
+    def renameModel(self, libraryName: str, name: str, uuid: str) -> None:
+        try:
+            libraryIndex = self._findWriteableLibrary(libraryName)
+            self._updateModelName(libraryIndex, name, uuid)
+        except DatabaseModelNotFound as exists:
+            # Rethrow
+            raise exists
+        except DatabaseLibraryReadOnlyError as ro:
+            raise ro
+        except Exception as ex:
+            print("Unable to update model:", ex)
+            raise DatabaseModelUpdateError(ex)
+
+    def moveModel(self, libraryName: str, path: str, uuid: str) -> None:
+        try:
+            libraryIndex = self._findWriteableLibrary(libraryName)
+            self._moveModel(libraryIndex, path, uuid)
+        except DatabaseModelNotFound as exists:
+            # Rethrow
+            raise exists
+        except DatabaseLibraryReadOnlyError as ro:
+            raise ro
+        except Exception as ex:
+            print("Unable to update model:", ex)
+            raise DatabaseModelUpdateError(ex)
+
+    def removeModel(self, uuid: str) -> None:
+        cursor = self._cursor()
+        cursor.execute("SELECT library_id FROM model WHERE model_id = ?", uuid)
+        row = cursor.fetchone()
+        if not row:
+            raise DatabaseLibraryNotFound()
+        else:
+            oldLibraryIndex = row.library_id
+
+            # Is the library read only?
+            if oldLibraryIndex > 0:
+                if self._isReadOnly(oldLibraryIndex):
+                    raise DatabaseLibraryReadOnlyError()
+            else:
+                raise DatabaseLibraryNotFound()
+            
+            cursor.execute("DELETE FROM model WHERE model_id = ?", uuid)
+            if cursor.rowcount < 0:
+                raise DatabaseDeleteError()
 
     def _createModelPropertyColumn(self, propertyId, property, libraryIndex):
         cursor = self._cursor()
@@ -555,10 +690,70 @@ class DatabaseMySQL(Database):
                 self._createModelProperty(model.UUID, property, libraryIndex)
         self._connection.commit()
 
+    def _updateModelPath(self, libraryIndex, path, uuid):
+        cursor = self._cursor()
+        pathIndex = self._createPath(libraryIndex, path)
+        cursor.execute("SELECT model_id FROM model WHERE library_id = ? AND model_id = ?", libraryIndex, uuid)
+        row = cursor.fetchone()
+        if not row:
+            raise DatabaseModelNotFound()
+        else:
+            cursor.execute("UPDATE model SET "
+                           "  folder_id = ?"
+                           " WHERE model_id = ?",
+                        (None if pathIndex == 0 else pathIndex),
+                        uuid
+                        )
+        self._connection.commit()
+
+    def _updateModelName(self, libraryIndex, name, uuid):
+        cursor = self._cursor()
+        cursor.execute("SELECT model_id FROM model WHERE library_id = ? AND model_id = ?", libraryIndex, uuid)
+        row = cursor.fetchone()
+        if not row:
+            raise DatabaseModelNotFound()
+        else:
+            cursor.execute("UPDATE model SET "
+                           "  model_name = ?"
+                           " WHERE model_id = ?",
+                        name,
+                        uuid
+                        )
+        self._connection.commit()
+
+    def _moveModel(self, libraryIndex, path, uuid):
+        cursor = self._cursor()
+        pathIndex = self._createPath(libraryIndex, path)
+        cursor.execute("SELECT library_id, folder_id FROM model WHERE model_id = ?", uuid)
+        row = cursor.fetchone()
+        if not row:
+            raise DatabaseModelNotFound()
+        else:
+            oldLibraryIndex = row.library_id
+            oldPathIndex = row.folder_id
+
+            # We already know the new library is writeable, but what about the old library?
+            if oldLibraryIndex > 0:
+                if self._isReadOnly(oldLibraryIndex):
+                    raise DatabaseLibraryReadOnlyError()
+            else:
+                raise DatabaseLibraryNotFound()
+            
+            if oldLibraryIndex != libraryIndex or oldPathIndex != pathIndex:
+                cursor.execute("UPDATE model SET "
+                            "  library_id = ?,"
+                            "  folder_id = ?"
+                            " WHERE model_id = ?",
+                            libraryIndex,
+                            pathIndex,
+                            uuid
+                            )
+        self._connection.commit()
+
     def _updateModel(self, libraryIndex, path, model):
         cursor = self._cursor()
         pathIndex = self._createPath(libraryIndex, path)
-        cursor.execute("SELECT model_id FROM model WHERE model_id = ?", model.UUID)
+        cursor.execute("SELECT model_id FROM model WHERE library_id = ? AND model_id = ?", libraryIndex, model.UUID)
         row = cursor.fetchone()
         if not row:
             raise DatabaseModelNotFound()
@@ -689,7 +884,7 @@ class DatabaseMySQL(Database):
     # Material methods
     #
 
-    def getMaterial(self, uuid):
+    def getMaterial(self, uuid: str) -> MaterialObjectType:
         try:
             cursor = self._cursor()
             cursor.execute("SELECT library_id, GetFolder(folder_id) as folder_name, material_name, "
@@ -740,7 +935,7 @@ class DatabaseMySQL(Database):
             print("Unable to get material:", ex)
             raise DatabaseMaterialNotFound(ex)
 
-    def createMaterial(self, libraryName, path, material):
+    def createMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
         try:
             libraryIndex = self._findLibrary(libraryName)
             if libraryIndex > 0:
@@ -751,6 +946,21 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             print("Unable to create material:", ex)
             raise DatabaseMaterialCreationError(ex)
+        
+    def updateMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
+        pass
+
+    def setMaterialPath(self, libraryName: str, path: str, uuid: str) -> None:
+        pass
+
+    def renameMaterial(self, libraryName: str, name: str, uuid: str) -> None:
+        pass
+
+    def moveMaterial(self, libraryName: str, path: str, uuid: str) -> None:
+        pass
+
+    def removeMaterial(self, uuid: str) -> None:
+        pass
 
     def _createTag(self, materialUUID, tag, libraryIndex):
         tagId = 0

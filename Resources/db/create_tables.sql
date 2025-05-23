@@ -22,6 +22,7 @@ CREATE TABLE folder (
 		ON DELETE CASCADE,
 	FOREIGN KEY (parent_id)
         REFERENCES folder(folder_id)
+		ON DELETE CASCADE
 );
 
 DROP TABLE IF EXISTS model;
@@ -39,7 +40,7 @@ CREATE TABLE model (
 		ON DELETE CASCADE,
 	FOREIGN KEY (folder_id)
         REFERENCES folder(folder_id)
-		ON DELETE CASCADE
+		ON DELETE RESTRICT
 );
 
 DROP TABLE IF EXISTS model_inheritance;
@@ -102,7 +103,7 @@ CREATE TABLE material (
 		ON DELETE CASCADE,
 	FOREIGN KEY (folder_id)
         REFERENCES folder(folder_id)
-		ON DELETE CASCADE,
+		ON DELETE RESTRICT,
 	FOREIGN KEY (material_parent_uuid)
         REFERENCES material(material_id)
 		ON DELETE RESTRICT

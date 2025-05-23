@@ -49,6 +49,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                                 ON DELETE CASCADE,
                             FOREIGN KEY (parent_id)
                                 REFERENCES folder(folder_id)
+                        		ON DELETE CASCADE
                         )""",
             "model" :   """CREATE TABLE IF NOT EXISTS model (
                             model_id CHAR(36) NOT NULL PRIMARY KEY,

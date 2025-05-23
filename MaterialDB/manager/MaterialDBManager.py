@@ -51,7 +51,7 @@ class MaterialsDBManager(MaterialManagerExternal):
         # print("materialLibraries()")
         return self._db.getMaterialLibraries()
 
-    def getLibrary(self, libraryName: str) -> tuple:
+    def getLibrary(self, libraryName: str) -> MaterialLibraryType:
         # print("getLibrary('{}')".format(libraryName))
         return self._db.getLibrary(libraryName)
 
@@ -126,16 +126,20 @@ class MaterialsDBManager(MaterialManagerExternal):
         self._db.updateModel(libraryName, path, model)
 
     def setModelPath(self, libraryName: str, path: str, uuid: str) -> None:
-        print("setModelPath('{}', '{}', '{}')".format(libraryName, path, uuid))
+        # print("setModelPath('{}', '{}', '{}')".format(libraryName, path, uuid))
+        self._db.setModelPath(libraryName, path, uuid)
 
     def renameModel(self, libraryName: str, name: str, uuid: str) -> None:
-        print("renameModel('{}', '{}', '{}')".format(libraryName, name, uuid))
+        # print("renameModel('{}', '{}', '{}')".format(libraryName, name, uuid))
+        self._db.renameModel(libraryName, name, uuid)
 
     def moveModel(self, libraryName: str, path: str, uuid: str) -> None:
-        print("moveModel('{}', '{}', '{}')".format(libraryName, path, uuid))
+        # print("moveModel('{}', '{}', '{}')".format(libraryName, path, uuid))
+        self._db.moveModel(libraryName, path, uuid)
 
     def removeModel(self, uuid: str) -> None:
-        print("removeModel('{}')".format(uuid))
+        # print("removeModel('{}')".format(uuid))
+        self.removeModel(uuid)
 
     #
     # Material methods
@@ -160,15 +164,20 @@ class MaterialsDBManager(MaterialManagerExternal):
 
     def updateMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
         print("updateMaterial('{}', '{}', '{}')".format(libraryName, path, material.Name))
+        self._db.updateMaterial(libraryName, path, material)
 
     def setMaterialPath(self, libraryName: str, path: str, uuid: str) -> None:
         print("setMaterialPath('{}', '{}', '{}')".format(libraryName, path, uuid))
+        self._db.setMaterialPath(libraryName, path, uuid)
 
     def renameMaterial(self, libraryName: str, name: str, uuid: str) -> None:
         print("renameMaterial('{}', '{}', '{}')".format(libraryName, name, uuid))
+        self._db.renameMaterial(libraryName, name, uuid)
 
     def moveMaterial(self, libraryName: str, path: str, uuid: str) -> None:
         print("moveMaterial('{}', '{}', '{}')".format(libraryName, path, uuid))
+        self._db.moveMaterial(libraryName, path, uuid)
 
     def removeMaterial(self, uuid: str) -> None:
         print("removeMaterial('{}')".format(uuid))
+        self._db.removeMaterial(uuid)
