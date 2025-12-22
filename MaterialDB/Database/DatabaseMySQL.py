@@ -39,11 +39,12 @@ from MaterialDB.Database.Exceptions import DatabaseLibraryCreationError, \
     DatabaseModelExistsError, DatabaseMaterialExistsError, \
     DatabaseModelNotFound, DatabaseMaterialNotFound, \
     DatabaseRenameError, DatabaseDeleteError
+from MaterialDB.Configuration import DEFAULT_INSTANCE
 
 class DatabaseMySQL(Database):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, instance : str = DEFAULT_INSTANCE):
+        super().__init__(instance)
 
     #
     # Library methods

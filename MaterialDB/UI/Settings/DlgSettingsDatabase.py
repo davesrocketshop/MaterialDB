@@ -31,8 +31,9 @@ import pyodbc
 from DraftTools import translate
 
 from PySide import  QtCore, QtGui
+from PySide.QtWidgets import QListWidgetItem
 
-from MaterialDB.Configuration import getPreferencesLocation
+from MaterialDB.Configuration import getPreferencesLocation, getInstances, renameInstance, DEFAULT_INSTANCE
 
 from MaterialDB.util.UIPath import getUIPath
 
@@ -42,14 +43,53 @@ class DlgSettingsDatabase(QtCore.QObject):
         super().__init__()
 
         self.form = FreeCADGui.PySideUic.loadUi(os.path.join(getUIPath(), 'Resources', 'ui', "DlgSettingsDatabase.ui"))
+        self._currentInstance = None
 
         self.initialize()
 
-    def initialize(self):
-        pass
+    def initialize(self) -> None:
+        instances = getInstances()
+        for instance in instances:
+            print(f"Instance: {instance}")
+            item = self.createItem(instance)
 
-    def saveSettings(self):
-        prefs = getPreferencesLocation()
+        self.form.listWidget.itemChanged.connect(self.onItemChanged)
+        self.form.listWidget.currentItemChanged.connect(self.onCurrentItemChanged)
+        self.form.buttonCreateInstance.clicked.connect(self.onCreateInstance)
+
+    def createItem(self, text : str) -> QListWidgetItem:
+        item = QListWidgetItem(text, self.form.listWidget)
+        item.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled)
+
+    def onItemChanged(self, item : QListWidgetItem) -> None:
+        print(f"onItemChanged({item.text()})")
+        if self._currentInstance:
+            print(f"Instance name has changed from {self._currentInstance} to {item.text()}")
+            renameInstance(self._currentInstance, item.text())
+
+    def onCurrentItemChanged(self, current : QListWidgetItem, previous : QListWidgetItem) -> None:
+        if previous:
+            print(f"Item changed: {previous.text()} -> {current.text()}")
+            if current.text() != previous.text():
+                self._saveSettings(previous.text())
+        else:
+            print(f"Item set: {current.text()}")
+        self._currentInstance = current.text()
+        self._loadSettings(self._currentInstance)
+
+    def onCreateInstance(self, checked : bool) -> None:
+        item = self.createItem("New Instance")
+        self.form.listWidget.editItem(item)
+
+    def saveSettings(self) -> None:
+        if self._currentInstance is None:
+            self._currentInstance = DEFAULT_INSTANCE
+        self._saveSettings(self._currentInstance)
+
+    def _saveSettings(self, instance : str | None = None) -> None:
+        if instance is None:
+            instance = DEFAULT_INSTANCE
+        prefs = getPreferencesLocation(instance)
         FreeCAD.ParamGet(prefs).SetString("Connection", self.form.comboConnectionType.currentText())
         FreeCAD.ParamGet(prefs).SetString("Driver", self.form.comboDriver.currentText())
         FreeCAD.ParamGet(prefs).SetString("DSN", self.form.comboDSN.currentData())
@@ -61,8 +101,15 @@ class DlgSettingsDatabase(QtCore.QObject):
 
         # Get the DSN
 
-    def loadSettings(self):
-        prefs = getPreferencesLocation()
+    def loadSettings(self, instance : str | None = None) -> None:
+        if self._currentInstance is None:
+            self._currentInstance = DEFAULT_INSTANCE
+        self._loadSettings(self._currentInstance)
+
+    def _loadSettings(self, instance : str | None = None) -> None:
+        if instance is None:
+            instance = DEFAULT_INSTANCE
+        prefs = getPreferencesLocation(instance)
 
         connectionTypes = ["ODBC", "MySQL"]
         self.form.comboConnectionType.addItems(connectionTypes)
@@ -83,7 +130,7 @@ class DlgSettingsDatabase(QtCore.QObject):
         password = FreeCAD.ParamGet(prefs).GetString("Password", "")
         self.form.editPassword.setText(password)
 
-    def showOdbcDrivers(self):
+    def showOdbcDrivers(self) -> None:
         self.form.comboDriver.clear()
         self.form.comboDriver.addItem("")
 
@@ -96,7 +143,7 @@ class DlgSettingsDatabase(QtCore.QObject):
         if currentDriver in drivers:
             self.form.comboDriver.setCurrentText(currentDriver)
 
-    def showOdbcDSNs(self):
+    def showOdbcDSNs(self) -> None:
         self.form.comboDSN.clear()
         self.form.comboDSN.addItem("", "")
 

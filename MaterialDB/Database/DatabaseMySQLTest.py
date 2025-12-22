@@ -27,12 +27,12 @@ import pyodbc
 import Materials
 from MaterialDB.Database.DatabaseMySQLCreate import DatabaseMySQLCreate
 from MaterialDB.Database.Exceptions import DatabaseConnectionError
-from MaterialDB.Configuration import getPreferencesLocation
+from MaterialDB.Configuration import getPreferencesLocation, DEFAULT_INSTANCE
 
 class DatabaseMySQLTest(DatabaseMySQLCreate):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, instance : str = DEFAULT_INSTANCE):
+        super().__init__(instance)
 
     def _connect(self, noDatabase=False):
         if self._connection is None:

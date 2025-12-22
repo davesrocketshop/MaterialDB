@@ -24,10 +24,32 @@ __url__ = "https://www.davesrocketshop.com"
 
 import FreeCAD
 
-def getPreferencesLocation():
-    # Set parameter location
-    return "User parameter:BaseApp/Preferences/Mod/MaterialDB"
+DEFAULT_INSTANCE = "Default"
 
-def getDatabaseName():
-    prefs = getPreferencesLocation()
+def getPreferencesLocation(instance : str | None = DEFAULT_INSTANCE) -> str:
+    # Set parameter location
+    if not instance:
+        return f"User parameter:BaseApp/Preferences/Mod/MaterialDB/"
+    return f"User parameter:BaseApp/Preferences/Mod/MaterialDB/Instance/{instance}"
+
+def getInstancePreferencesLocation() -> str:
+    return "User parameter:BaseApp/Preferences/Mod/MaterialDB/Instance"
+
+def getDatabaseName(instance : str = DEFAULT_INSTANCE) -> str:
+    prefs = getPreferencesLocation(instance)
     return FreeCAD.ParamGet(prefs).GetString("Database", "material")
+
+def getInstances() -> list[str]:
+    instances = []
+    prefs = getInstancePreferencesLocation()
+    param = FreeCAD.ParamGet(prefs)
+    for group in param.GetGroups():
+        print(group)
+        instances.append(group)
+
+    if DEFAULT_INSTANCE not in instances:
+        instances.insert(0, DEFAULT_INSTANCE)
+    return instances
+
+def renameInstance(oldInstance : str, newInstance : str) -> None:
+    ...

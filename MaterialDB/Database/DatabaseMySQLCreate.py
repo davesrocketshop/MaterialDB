@@ -23,13 +23,15 @@ __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
 from MaterialDB.Database.DatabaseMySQL import DatabaseMySQL
-from MaterialDB.Configuration import getDatabaseName
+from MaterialDB.Configuration import getDatabaseName, DEFAULT_INSTANCE
 from MaterialDB.Database.Exceptions import DatabaseCreationError, DatabaseTableCreationError
 
 class DatabaseMySQLCreate(DatabaseMySQL):
 
-    def __init__(self):
+    def __init__(self, instance : str = DEFAULT_INSTANCE):
         super().__init__()
+
+        self._instance = instance
 
         # See Resources/db/create_tables.sql
         self._tables = {
@@ -228,16 +230,19 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                     END"""
         }
 
+    def instance(self) -> str:
+        return self._instance
+
     def checkIfExists(self):
         try:
             cursor = self._cursor()
 
-            cursor.execute("USE {}".format(getDatabaseName()))
+            cursor.execute("USE {}".format(getDatabaseName(self._instance)))
             cursor.commit()
             return True
         except Exception as err:
             print(err)
-            print("Database {} does not exist.".format(getDatabaseName()))
+            print(f"Database {getDatabaseName(self._instance)} for instance {self._instance} does not exist.")
         return False
 
     def dropTables(self):

@@ -29,11 +29,12 @@ import FreeCAD
 from DraftTools import translate
 
 from MaterialDB.Database.Exceptions import DatabaseConnectionError
-from MaterialDB.Configuration import getPreferencesLocation
+from MaterialDB.Configuration import getPreferencesLocation, DEFAULT_INSTANCE
 
 class Database:
 
-    def __init__(self):
+    def __init__(self, instance : str = DEFAULT_INSTANCE):
+        self._instance = instance
         self._connection = None
 
         # self._database = "material" # This needs to be generalized
