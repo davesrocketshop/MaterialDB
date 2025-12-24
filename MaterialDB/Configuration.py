@@ -54,4 +54,4 @@ def getInstances() -> list[str]:
 def renameInstance(oldInstance : str, newInstance : str) -> None:
     prefs = getInstancePreferencesLocation()
     param = FreeCAD.ParamGet(prefs)
-    param.RenameGrp(oldInstance, newInstance)
+    param.RenameGroup(oldInstance, newInstance)
