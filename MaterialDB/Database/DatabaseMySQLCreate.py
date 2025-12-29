@@ -287,6 +287,9 @@ class DatabaseMySQLCreate(DatabaseMySQL):
             raise DatabaseTableCreationError(err)
 
     def createDatabase(self, dbName):
+        # Force a fresh connection
+        self._disconnect()
+        
         try:
             print("dbName '{}'".format(dbName))
             if len(dbName) < 1:
