@@ -181,3 +181,7 @@ class MaterialsDBManager(MaterialManagerExternal):
     def removeMaterial(self, uuid: str) -> None:
         print("removeMaterial('{}')".format(uuid))
         self._db.removeMaterial(uuid)
+
+    def materialExists(self, libraryName : str, uuid: str) -> bool:
+        print("materialExists('{}')".format(uuid))
+        return self._db.materialExists(libraryName, uuid)

@@ -963,6 +963,24 @@ class DatabaseMySQL(Database):
     def removeMaterial(self, uuid: str) -> None:
         pass
 
+    def materialExists(self, libraryName : str, uuid: str) -> bool:
+        try:
+            cursor = self._cursor()
+            if not libraryName:
+                cursor.execute("SELECT COUNT(*) FROM material WHERE material_id = ?",
+                            uuid)
+            else:
+                cursor.execute("SELECT COUNT(*) FROM material m, library l "
+                                "WHERE l.library_name = ? AND m.material_id = ? AND l.library_id = m.library_id",
+                            libraryName, uuid)
+
+            count = cursor.fetchone()[0]
+            return count > 0
+
+        except Exception as ex:
+            pass
+        return False
+
     def _createTag(self, materialUUID : str, tag : str, libraryIndex : int) -> None:
         tagId = 0
         cursor = self._cursor()
