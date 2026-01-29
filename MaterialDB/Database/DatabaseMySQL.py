@@ -237,18 +237,16 @@ class DatabaseMySQL(Database):
             raise DatabaseMaterialNotFound(ex)
 
 
-    def _findLibrary(self, name : str) -> int:
-        cursor = self._cursor()
-
+    def _findLibrary(self, cursor : Cursor, name : str) -> int:
         cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
         row = cursor.fetchone()
         if row:
             return row.library_id
         return 0
     
-    def _findWriteableLibrary(self, name : str) -> int:
+    def _findWriteableLibrary(self, cursor : Cursor, name : str) -> int:
         """ Finds the name library and ensures it's not read only """
-        libraryIndex = self._findLibrary(name)
+        libraryIndex = self._findLibrary(cursor, name)
         if libraryIndex > 0:
             if self._isReadOnly(libraryIndex):
                 raise DatabaseLibraryReadOnlyError()
@@ -269,8 +267,7 @@ class DatabaseMySQL(Database):
             return bytes(ba.data())
         return icon
 
-    def _getLibrary(self, libraryId : int) -> MaterialLibraryType:
-        cursor = self._cursor()
+    def _getLibrary(self, cursor : Cursor, libraryId : int) -> MaterialLibraryType:
         cursor.execute("SELECT library_name, library_icon, library_read_only "
                                     "FROM library WHERE library_id = ?",
                        libraryId)
@@ -279,8 +276,7 @@ class DatabaseMySQL(Database):
             return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only)
         return None
 
-    def _isReadOnly(self, libraryId : int) -> bool:
-        cursor = self._cursor()
+    def _isReadOnly(self, cursor : Cursor, libraryId : int) -> bool:
         cursor.execute("SELECT library_read_only FROM library WHERE library_id = ?",
                        libraryId)
         row = cursor.fetchone()
@@ -295,7 +291,8 @@ class DatabaseMySQL(Database):
 
     def createFolder(self, libraryName: str, path: str) -> None:
         try:
-            libraryIndex = self._findWriteableLibrary(libraryName)
+            cursor = self._cursor()
+            libraryIndex = self._findWriteableLibrary(cursor, libraryName)
             self._createPath(libraryIndex, path)
         except Exception as ex:
             print("Unable to create folder:", ex)
@@ -303,7 +300,8 @@ class DatabaseMySQL(Database):
 
     def renameFolder(self, libraryName: str, oldPath: str, newPath: str) -> None:
         try:
-            libraryIndex = self._findWriteableLibrary(libraryName)
+            cursor = self._cursor()
+            libraryIndex = self._findWriteableLibrary(cursor, libraryName)
 
             # Check the folders have the same parent path
             oldPathList = self._pathList(oldPath)
@@ -312,7 +310,6 @@ class DatabaseMySQL(Database):
                 raise DatabaseRenameError("Path lengths don't match")
 
             parentIndex = 0 # start at the root
-            cursor = self._cursor()
             if len(newPathList) > 0:
                 for index in range(0, len(newPathList) - 1):
                     if oldPathList[index] != newPathList[index]:
@@ -344,11 +341,11 @@ class DatabaseMySQL(Database):
 
     def deleteRecursive(self, libraryName: str, path: str) -> None:
         try:
-            libraryIndex = self._findWriteableLibrary(libraryName)
+            cursor = self._cursor()
+            libraryIndex = self._findWriteableLibrary(cursor, libraryName)
 
             pathList = self._pathList(path)
             parentIndex = 0 # start at the root
-            cursor = self._cursor()
             if len(pathList) > 0:
                 for index in range(0, len(pathList) - 1):
                     if parentIndex == 0:
@@ -381,9 +378,8 @@ class DatabaseMySQL(Database):
 
         return path.split('/')
 
-    def _createPathRecursive(self, libraryIndex : int, parentIndex : int, pathIndex : int, pathList : list[str]) -> int:
+    def _createPathRecursive(self, cursor : Cursor, libraryIndex : int, parentIndex : int, pathIndex : int, pathList : list[str]) -> int:
         newId = 0
-        cursor = self._cursor()
 
         if parentIndex == 0:
             # No parent. This is a root folder
@@ -409,23 +405,21 @@ class DatabaseMySQL(Database):
                                             "VALUES (?, ?, ?)", pathList[pathIndex], libraryIndex, parentIndex)
                 newId = self._lastId(cursor)
 
-        cursor.commit()
         index = pathIndex + 1
         if index >= len(pathList):
             return newId
-        return self._createPathRecursive(libraryIndex, newId, index, pathList)
+        return self._createPathRecursive(cursor, libraryIndex, newId, index, pathList)
 
-    def _createPath(self, libraryIndex : int, path : str) -> int:
+    def _createPath(self, cursor : Cursor, libraryIndex : int, path : str) -> int:
         newId = 0
 
         pathList = self._pathList(path)
         if len(pathList) > 0:
-            return self._createPathRecursive(libraryIndex, 0, 0, pathList)
+            return self._createPathRecursive(cursor, libraryIndex, 0, 0, pathList)
         return newId
 
-    def _getPath(self, folderId : int) -> str:
+    def _getPath(self, cursor : Cursor, folderId : int) -> str:
         path = ""
-        cursor = self._cursor()
         cursor.execute("""WITH RECURSIVE subordinate AS (
                         SELECT
                             folder_id,
@@ -484,7 +478,7 @@ class DatabaseMySQL(Database):
             model.DOI = row.model_doi
 
             # model.Library = self._getLibrary(row.library_id)
-            library = self._getLibrary(row.library_id)
+            library = self._getLibrary(cursor, row.library_id)
 
             inherits = self._getInherits(uuid)
             for inherit in inherits:
@@ -505,7 +499,7 @@ class DatabaseMySQL(Database):
 
     def createModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
         try:
-            libraryIndex = self._findLibrary(libraryName)
+            libraryIndex = self._findLibrary(cursor, libraryName)
             if libraryIndex > 0:
                 self._createModel(libraryIndex, path, model)
         except DatabaseModelExistsError as exists:
@@ -518,7 +512,7 @@ class DatabaseMySQL(Database):
 
     def updateModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
         try:
-            libraryIndex = self._findWriteableLibrary(libraryName)
+            libraryIndex = self._findWriteableLibrary(cursor, libraryName)
             self._updateModel(libraryIndex, path, model)
         except DatabaseModelNotFound as exists:
             # Rethrow
@@ -531,7 +525,7 @@ class DatabaseMySQL(Database):
         
     def setModelPath(self, libraryName: str, path: str, uuid: str) -> None:
         try:
-            libraryIndex = self._findWriteableLibrary(libraryName)
+            libraryIndex = self._findWriteableLibrary(cursor, libraryName)
             self._updateModelPath(libraryIndex, path, uuid)
         except DatabaseModelNotFound as exists:
             # Rethrow
@@ -544,7 +538,7 @@ class DatabaseMySQL(Database):
 
     def renameModel(self, libraryName: str, name: str, uuid: str) -> None:
         try:
-            libraryIndex = self._findWriteableLibrary(libraryName)
+            libraryIndex = self._findWriteableLibrary(cursor, libraryName)
             self._updateModelName(libraryIndex, name, uuid)
         except DatabaseModelNotFound as exists:
             # Rethrow
@@ -557,7 +551,7 @@ class DatabaseMySQL(Database):
 
     def moveModel(self, libraryName: str, path: str, uuid: str) -> None:
         try:
-            libraryIndex = self._findWriteableLibrary(libraryName)
+            libraryIndex = self._findWriteableLibrary(cursor, libraryName)
             self._moveModel(libraryIndex, path, uuid)
         except DatabaseModelNotFound as exists:
             # Rethrow
@@ -579,7 +573,7 @@ class DatabaseMySQL(Database):
 
             # Is the library read only?
             if oldLibraryIndex > 0:
-                if self._isReadOnly(oldLibraryIndex):
+                if self._isReadOnly(cursor, oldLibraryIndex):
                     raise DatabaseLibraryReadOnlyError()
             else:
                 raise DatabaseLibraryNotFound()
@@ -588,8 +582,7 @@ class DatabaseMySQL(Database):
             if cursor.rowcount < 0:
                 raise DatabaseDeleteError()
 
-    def _createModelPropertyColumn(self, propertyId : int, property : Materials.ModelProperty, libraryIndex : int) -> None:
-        cursor = self._cursor()
+    def _createModelPropertyColumn(self, cursor : Cursor, propertyId : int, property : Materials.ModelProperty, libraryIndex : int) -> None:
         cursor.execute("SELECT model_property_column_id FROM model_property_column WHERE model_property_id "
             "= ? AND model_property_name = ?", propertyId, property.Name)
         row = cursor.fetchone()
@@ -609,11 +602,10 @@ class DatabaseMySQL(Database):
                 )
         cursor.commit()
 
-    def _createModelProperty(self, modelUUID : str, property : Materials.ModelProperty, libraryIndex : int) -> None:
+    def _createModelProperty(self, cursor : Cursor, modelUUID : str, property : Materials.ModelProperty, libraryIndex : int) -> None:
         if property.Inherited:
             return
 
-        cursor = self._cursor()
         cursor.execute("SELECT model_property_id FROM model_property WHERE model_id "
                                 "= ? AND model_property_name = ?", modelUUID, property.Name)
         row = cursor.fetchone()
@@ -633,14 +625,13 @@ class DatabaseMySQL(Database):
                 )
             propertyId = self._lastId(cursor)
             for column in property.Columns:
-                self._createModelPropertyColumn(propertyId, column, libraryIndex)
+                self._createModelPropertyColumn(cursor, propertyId, column, libraryIndex)
         cursor.commit()
 
-    def _updateModelProperty(self, modelUUID : str, property : Materials.ModelProperty, libraryIndex : int) -> None:
+    def _updateModelProperty(self,cursor : Cursor,  modelUUID : str, property : Materials.ModelProperty, libraryIndex : int) -> None:
         if property.Inherited:
             return
 
-        cursor = self._cursor()
         cursor.execute("SELECT model_property_id FROM model_property WHERE model_id "
                                 "= ? AND model_property_name = ?", modelUUID, property.Name)
         row = cursor.fetchone()
@@ -660,12 +651,11 @@ class DatabaseMySQL(Database):
                 )
             propertyId = self._lastId(cursor)
             for column in property.Columns:
-                self._createModelPropertyColumn(propertyId, column, libraryIndex)
+                self._createModelPropertyColumn(cursor, propertyId, column, libraryIndex)
         cursor.commit()
 
-    def _createModel(self, libraryIndex : int, path : str, model : Materials.Model) -> None:
-        cursor = self._cursor()
-        pathIndex = self._createPath(libraryIndex, path)
+    def _createModel(self, cursor : Cursor, libraryIndex : int, path : str, model : Materials.Model) -> None:
+        pathIndex = self._createPath(cursor, libraryIndex, path)
         cursor.execute("SELECT model_id FROM model WHERE model_id = ?", model.UUID)
         row = cursor.fetchone()
         if row:
@@ -688,12 +678,11 @@ class DatabaseMySQL(Database):
                 self._createInheritance(model.UUID, inherit, libraryIndex)
 
             for property in model.Properties.values():
-                self._createModelProperty(model.UUID, property, libraryIndex)
+                self._createModelProperty(cursor, model.UUID, property, libraryIndex)
         cursor.commit()
 
-    def _updateModelPath(self, libraryIndex : int, path : str, uuid : str) -> None:
-        cursor = self._cursor()
-        pathIndex = self._createPath(libraryIndex, path)
+    def _updateModelPath(self, cursor : Cursor, libraryIndex : int, path : str, uuid : str) -> None:
+        pathIndex = self._createPath(cursor, libraryIndex, path)
         cursor.execute("SELECT model_id FROM model WHERE library_id = ? AND model_id = ?", libraryIndex, uuid)
         row = cursor.fetchone()
         if not row:
@@ -707,8 +696,7 @@ class DatabaseMySQL(Database):
                         )
         cursor.commit()
 
-    def _updateModelName(self, libraryIndex : int, name : str, uuid : str) -> None:
-        cursor = self._cursor()
+    def _updateModelName(self, cursor : Cursor, libraryIndex : int, name : str, uuid : str) -> None:
         cursor.execute("SELECT model_id FROM model WHERE library_id = ? AND model_id = ?", libraryIndex, uuid)
         row = cursor.fetchone()
         if not row:
@@ -722,9 +710,8 @@ class DatabaseMySQL(Database):
                         )
         cursor.commit()
 
-    def _moveModel(self, libraryIndex : int, path : str, uuid : str) -> None:
-        cursor = self._cursor()
-        pathIndex = self._createPath(libraryIndex, path)
+    def _moveModel(self, cursor : Cursor, libraryIndex : int, path : str, uuid : str) -> None:
+        pathIndex = self._createPath(cursor, libraryIndex, path)
         cursor.execute("SELECT library_id, folder_id FROM model WHERE model_id = ?", uuid)
         row = cursor.fetchone()
         if not row:
@@ -751,9 +738,8 @@ class DatabaseMySQL(Database):
                             )
         cursor.commit()
 
-    def _updateModel(self, libraryIndex : int, path : str, model : Materials.Model) -> None:
-        cursor = self._cursor()
-        pathIndex = self._createPath(libraryIndex, path)
+    def _updateModel(self, cursor : Cursor, libraryIndex : int, path : str, model : Materials.Model) -> None:
+        pathIndex = self._createPath(cursor, libraryIndex, path)
         cursor.execute("SELECT model_id FROM model WHERE library_id = ? AND model_id = ?", libraryIndex, model.UUID)
         row = cursor.fetchone()
         if not row:
@@ -792,11 +778,10 @@ class DatabaseMySQL(Database):
                 cursor.execute("DELETE FROM model_property WHERE model_property_id = ?", property_id)
 
             for property in model.Properties.values():
-                self._updateModelProperty(model.UUID, property, libraryIndex)
+                self._updateModelProperty(cursor, model.UUID, property, libraryIndex)
         cursor.commit()
 
-    def _createInheritance(self, modelUUID : str, inheritUUID : str, libraryIndex : int) -> None:
-        cursor = self._cursor()
+    def _createInheritance(self, cursor : Cursor, modelUUID : str, inheritUUID : str, libraryIndex : int) -> None:
         cursor.execute("SELECT model_inheritance_id FROM model_inheritance WHERE model_id "
                                 "= ? AND inherits_id = ?", modelUUID, inheritUUID)
         row = cursor.fetchone()
@@ -808,9 +793,8 @@ class DatabaseMySQL(Database):
             self._foreignKeysRestore(cursor)
         cursor.commit()
 
-    def _getInherits(self, uuid : str) -> list[str]:
+    def _getInherits(self, cursor : Cursor, uuid : str) -> list[str]:
         inherits = []
-        cursor = self._cursor()
         cursor.execute("SELECT inherits_id FROM model_inheritance "
                                     "WHERE model_id = ?",
                        uuid)
@@ -820,9 +804,8 @@ class DatabaseMySQL(Database):
 
         return inherits
 
-    def _getModelColumns(self, uuid : str, propertyName : str) -> list[Materials.ModelProperty]:
+    def _getModelColumns(self, cursor : Cursor, uuid : str, propertyName : str) -> list[Materials.ModelProperty]:
         columns = []
-        cursor = self._cursor()
         cursor.execute("SELECT model_property_id FROM model_property "
                                     "WHERE model_id = ? AND model_property_name = ?",
                        uuid, propertyName)
