@@ -93,9 +93,9 @@ class DatabaseMySQL(Database):
             return MaterialLibraryType(row.library_name, row.library_icon, row.library_read_only)
         return None
 
-    def createLibrary(self, libraryName: str, icon: bytes, readOnly: bool) -> None:
+    def createLibrary(self, libraryName: str, icon: bytes | None, readOnly: bool) -> None:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
 
             cursor.execute("SELECT library_id, library_icon, library_read_only FROM library WHERE library_name = ?", libraryName)
             row = cursor.fetchone()
@@ -108,7 +108,7 @@ class DatabaseMySQL(Database):
                             "VALUES (?, ?, ?)", libraryName, icon, readOnly)
                 cursor.commit()
             else:
-                # Check that everthing matches
+                # Check that everything matches
                 if icon is None:
                     if readOnly == row.library_read_only and (row.library_icon is None or len(row.library_icon) == 0):
                         return
@@ -117,15 +117,19 @@ class DatabaseMySQL(Database):
                     #     return
                     if readOnly == row.library_read_only and icon == row.library_icon:
                         return
+                    
                 raise DatabaseLibraryCreationError("Library already exists")
+        except DatabaseLibraryCreationError as createError:
+            cursor.rollback()
+            raise createError
         except Exception as ex:
+            cursor.rollback()
             print("Unable to create library '{}':".format(libraryName), ex)
             raise DatabaseLibraryCreationError(ex)
 
     def renameLibrary(self, oldName: str, newName: str) -> None:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
-
             cursor.execute("SELECT library_id FROM library WHERE library_name = ?", newName)
             row = cursor.fetchone()
             if row:
@@ -135,37 +139,41 @@ class DatabaseMySQL(Database):
                                 "WHERE library_name = ?", newName, oldName)
 
             cursor.commit()
+        except DatabaseRenameError as renameError:
+            cursor.rollback()
+            raise renameError
         except Exception as ex:
+            cursor.rollback()
             print("Unable to rename library:", ex)
-            raise DatabaseRenameError(ex)
+            raise DatabaseRenameError(error=ex)
 
     def changeIcon(self, libraryName: str, icon: bytes) -> None:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
-
             cursor.execute("UPDATE library SET library_icon = ? "
                                 "WHERE library_name = ?", icon, libraryName)
 
             cursor.commit()
         except Exception as ex:
+            cursor.rollback()
             print("Unable to change icon:", ex)
-            raise DatabaseIconError(ex)
+            raise DatabaseIconError(error=ex)
 
     def removeLibrary(self, libraryName: str) -> None:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
-
             cursor.execute("DELETE FROM library WHERE library_name = ?", libraryName)
 
             cursor.commit()
         except Exception as ex:
+            cursor.rollback()
             print("Unable to remove library:", ex)
-            raise DatabaseDeleteError(ex)
+            raise DatabaseDeleteError(error=ex)
 
     def libraryModels(self, libraryName: str) -> list[MaterialLibraryObjectType]:
+        cursor = self._cursor()
         try:
             models = []
-            cursor = self._cursor()
 
             cursor.execute("SELECT library_id FROM library WHERE library_name = ?", libraryName)
             row = cursor.fetchone()
@@ -181,16 +189,21 @@ class DatabaseMySQL(Database):
                 models.append(MaterialLibraryObjectType(row.model_id, row.folder_name, row.model_name))
 
             return models
+        except DatabaseLibraryNotFound as notFound:
+            cursor.rollback()
+            # Rethrow
+            raise notFound
         except Exception as ex:
+            cursor.rollback()
             print("Unable to get library models:", ex)
-            raise DatabaseModelNotFound(ex)
+            raise DatabaseLibraryNotFound(error=ex)
 
     def libraryMaterials(self, libraryName: str,
                          filter: Materials.MaterialFilter = None,
                          options: Materials.MaterialFilterOptions = None) -> list[MaterialLibraryObjectType]:
+        cursor = self._cursor()
         try:
             materials = []
-            cursor = self._cursor()
 
             cursor.execute("SELECT library_id FROM library WHERE library_name = ?", libraryName)
             row = cursor.fetchone()
@@ -205,14 +218,17 @@ class DatabaseMySQL(Database):
                 materials.append(MaterialLibraryObjectType(row.material_id, row.folder_name, row.material_name))
 
             return materials
+        except DatabaseLibraryNotFound as notFound:
+            cursor.rollback()
+            raise notFound # Rethrow
         except Exception as ex:
+            cursor.rollback()
             print("Unable to get library materials:", ex)
             raise DatabaseMaterialNotFound(ex)
 
     def libraryFolders(self, libraryName: str) -> list[str]:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
-
             cursor.execute("SELECT library_id FROM library WHERE library_name = ?", libraryName)
             row = cursor.fetchone()
             if not row:
@@ -232,7 +248,11 @@ class DatabaseMySQL(Database):
                     folderTree[row.folder_id] = folderTree[row.parent_id] + "/" + row.folder_name
 
             return list(folderTree.values())
+        except DatabaseLibraryNotFound as notFound:
+            cursor.rollback()
+            raise notFound # Rethrow
         except Exception as ex:
+            cursor.rollback()
             print("Unable to get library folders:", ex)
             raise DatabaseMaterialNotFound(ex)
 
@@ -248,24 +268,11 @@ class DatabaseMySQL(Database):
         """ Finds the name library and ensures it's not read only """
         libraryIndex = self._findLibrary(cursor, name)
         if libraryIndex > 0:
-            if self._isReadOnly(libraryIndex):
+            if self._isReadOnly(cursor, libraryIndex):
                 raise DatabaseLibraryReadOnlyError()
         else:
             raise DatabaseLibraryNotFound()
         return libraryIndex
-
-    def _getIcon(self, icon, iconPath):
-        if icon is None or len(icon) == 0:
-            if iconPath is None or len(iconPath) == 0:
-                return None
-            iconImage = QImage(iconPath)
-            ba = QByteArray()
-            buffer = QBuffer(ba)
-            buffer.open(QIODevice.WriteOnly)
-            iconImage.save(buffer, "PNG") # writes image into ba in PNG format
-            # iconImage.save(buffer) # writes image into ba in PNG format
-            return bytes(ba.data())
-        return icon
 
     def _getLibrary(self, cursor : Cursor, libraryId : int) -> MaterialLibraryType:
         cursor.execute("SELECT library_name, library_icon, library_read_only "
@@ -290,17 +297,19 @@ class DatabaseMySQL(Database):
     #
 
     def createFolder(self, libraryName: str, path: str) -> None:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
             libraryIndex = self._findWriteableLibrary(cursor, libraryName)
-            self._createPath(libraryIndex, path)
+            self._createPath(cursor, libraryIndex, path)
+            cursor.commit()
         except Exception as ex:
+            cursor.rollback()
             print("Unable to create folder:", ex)
             raise DatabaseFolderCreationError(ex)
 
     def renameFolder(self, libraryName: str, oldPath: str, newPath: str) -> None:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
             libraryIndex = self._findWriteableLibrary(cursor, libraryName)
 
             # Check the folders have the same parent path
@@ -335,13 +344,18 @@ class DatabaseMySQL(Database):
                                 "WHERE parent_id = ? AND folder_name = ?", newPathList[-1], parentIndex, oldPathList[-1])
                 if cursor.rowcount < 1:
                     raise DatabaseRenameError("Unable to update folder path")
+            cursor.commit()
 
+        except DatabaseRenameError as renameError:
+            cursor.rollback()
+            raise renameError # Re-raise
         except Exception as ex:
-            raise ex
+            cursor.rollback
+            raise DatabaseRenameError(error=ex)
 
     def deleteRecursive(self, libraryName: str, path: str) -> None:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
             libraryIndex = self._findWriteableLibrary(cursor, libraryName)
 
             pathList = self._pathList(path)
@@ -367,9 +381,13 @@ class DatabaseMySQL(Database):
                                 "WHERE parent_id = ? AND folder_name = ?", parentIndex, pathList[-1])
                 if cursor.rowcount < 1:
                     raise DatabaseDeleteError("Unable to delete folder")
-
+            cursor.commit()
+        except DatabaseDeleteError as deleteError:
+            cursor.rollback()
+            raise deleteError
         except Exception as ex:
-            raise ex
+            cursor.rollback()
+            raise DatabaseDeleteError(error=ex)
 
     def _pathList(self, path : str) -> list[str]:
         # Strip any leading "/"
@@ -458,8 +476,8 @@ class DatabaseMySQL(Database):
     #
 
     def getModel(self, uuid: str) -> ModelObjectType:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
             cursor.execute("SELECT library_id, GetFolder(folder_id) as folder_name, model_type, "
                 "model_name, model_url, model_description, model_doi FROM model WHERE model_id = ?",
                         uuid)
@@ -480,107 +498,146 @@ class DatabaseMySQL(Database):
             # model.Library = self._getLibrary(row.library_id)
             library = self._getLibrary(cursor, row.library_id)
 
-            inherits = self._getInherits(uuid)
+            inherits = self._getInherits(cursor, uuid)
             for inherit in inherits:
                 model.addInheritance(inherit)
 
-            properties = self._getModelProperties(uuid)
+            properties = self._getModelProperties(cursor, uuid)
             for property in properties:
                 model.addProperty(property)
 
+            cursor.commit()
             return ModelObjectType(library.name, model)
 
         except DatabaseModelNotFound as notFound:
+            cursor.rollback()
             # Rethrow
             raise notFound
         except Exception as ex:
+            cursor.rollback()
             print("Unable to get model:", ex)
             raise DatabaseModelNotFound(ex)
 
     def createModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
+        cursor = self._cursor()
         try:
             libraryIndex = self._findLibrary(cursor, libraryName)
             if libraryIndex > 0:
-                self._createModel(libraryIndex, path, model)
+                self._createModel(cursor, libraryIndex, path, model)
+            cursor.commit()
         except DatabaseModelExistsError as exists:
+            cursor.rollback()
             # Rethrow
             raise exists
         except Exception as ex:
+            cursor.rollback()
             # print("Exception '{}'".format(type(ex).__name__))
             print("Unable to create model:", ex)
             raise DatabaseModelCreationError(ex)
 
     def updateModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
+        cursor = self._cursor()
         try:
             libraryIndex = self._findWriteableLibrary(cursor, libraryName)
-            self._updateModel(libraryIndex, path, model)
+            self._updateModel(cursor, libraryIndex, path, model)
+            cursor.commit()
         except DatabaseModelNotFound as exists:
+            cursor.rollback()
             # Rethrow
             raise exists
         except DatabaseLibraryReadOnlyError as ro:
+            cursor.rollback()
             raise ro
         except Exception as ex:
+            cursor.rollback()
             print("Unable to update model:", ex)
             raise DatabaseModelUpdateError(ex)
         
     def setModelPath(self, libraryName: str, path: str, uuid: str) -> None:
+        cursor = self._cursor()
         try:
             libraryIndex = self._findWriteableLibrary(cursor, libraryName)
-            self._updateModelPath(libraryIndex, path, uuid)
+            self._updateModelPath(cursor, libraryIndex, path, uuid)
+            cursor.commit()
         except DatabaseModelNotFound as exists:
+            cursor.rollback()
             # Rethrow
             raise exists
         except DatabaseLibraryReadOnlyError as ro:
+            cursor.rollback()
             raise ro
         except Exception as ex:
+            cursor.rollback()
             print("Unable to update model:", ex)
             raise DatabaseModelUpdateError(ex)
 
     def renameModel(self, libraryName: str, name: str, uuid: str) -> None:
+        cursor = self._cursor()
         try:
             libraryIndex = self._findWriteableLibrary(cursor, libraryName)
-            self._updateModelName(libraryIndex, name, uuid)
+            self._updateModelName(cursor, libraryIndex, name, uuid)
+            cursor.commit()
         except DatabaseModelNotFound as exists:
+            cursor.rollback()
             # Rethrow
             raise exists
         except DatabaseLibraryReadOnlyError as ro:
+            cursor.rollback()
             raise ro
         except Exception as ex:
+            cursor.rollback()
             print("Unable to update model:", ex)
             raise DatabaseModelUpdateError(ex)
 
     def moveModel(self, libraryName: str, path: str, uuid: str) -> None:
+        cursor = self._cursor()
         try:
             libraryIndex = self._findWriteableLibrary(cursor, libraryName)
-            self._moveModel(libraryIndex, path, uuid)
+            self._moveModel(cursor, libraryIndex, path, uuid)
+            cursor.commit()
         except DatabaseModelNotFound as exists:
+            cursor.rollback()
             # Rethrow
             raise exists
         except DatabaseLibraryReadOnlyError as ro:
+            cursor.rollback()
             raise ro
         except Exception as ex:
+            cursor.rollback()
             print("Unable to update model:", ex)
             raise DatabaseModelUpdateError(ex)
 
     def removeModel(self, uuid: str) -> None:
         cursor = self._cursor()
-        cursor.execute("SELECT library_id FROM model WHERE model_id = ?", uuid)
-        row = cursor.fetchone()
-        if not row:
-            raise DatabaseLibraryNotFound()
-        else:
-            oldLibraryIndex = row.library_id
-
-            # Is the library read only?
-            if oldLibraryIndex > 0:
-                if self._isReadOnly(cursor, oldLibraryIndex):
-                    raise DatabaseLibraryReadOnlyError()
-            else:
+        try:
+            cursor.execute("SELECT library_id FROM model WHERE model_id = ?", uuid)
+            row = cursor.fetchone()
+            if not row:
                 raise DatabaseLibraryNotFound()
-            
-            cursor.execute("DELETE FROM model WHERE model_id = ?", uuid)
-            if cursor.rowcount < 0:
-                raise DatabaseDeleteError()
+            else:
+                oldLibraryIndex = row.library_id
+
+                # Is the library read only?
+                if oldLibraryIndex > 0:
+                    if self._isReadOnly(cursor, oldLibraryIndex):
+                        raise DatabaseLibraryReadOnlyError()
+                else:
+                    raise DatabaseLibraryNotFound()
+                
+                cursor.execute("DELETE FROM model WHERE model_id = ?", uuid)
+                if cursor.rowcount < 0:
+                    raise DatabaseDeleteError()
+            cursor.commit()
+        except DatabaseLibraryNotFound as noLibrary:
+            cursor.rollback()
+            raise noLibrary
+        except DatabaseDeleteError as delError:
+            cursor.rollback()
+            raise delError
+        except Exception as ex:
+            cursor.rollback()
+            print(f"Unable to remove model: {ex}")
+            raise DatabaseDeleteError(error=ex)
 
     def _createModelPropertyColumn(self, cursor : Cursor, propertyId : int, property : Materials.ModelProperty, libraryIndex : int) -> None:
         cursor.execute("SELECT model_property_column_id FROM model_property_column WHERE model_property_id "
@@ -600,7 +657,6 @@ class DatabaseMySQL(Database):
                 property.URL,
                 property.Description
                 )
-        cursor.commit()
 
     def _createModelProperty(self, cursor : Cursor, modelUUID : str, property : Materials.ModelProperty, libraryIndex : int) -> None:
         if property.Inherited:
@@ -626,7 +682,6 @@ class DatabaseMySQL(Database):
             propertyId = self._lastId(cursor)
             for column in property.Columns:
                 self._createModelPropertyColumn(cursor, propertyId, column, libraryIndex)
-        cursor.commit()
 
     def _updateModelProperty(self,cursor : Cursor,  modelUUID : str, property : Materials.ModelProperty, libraryIndex : int) -> None:
         if property.Inherited:
@@ -652,7 +707,6 @@ class DatabaseMySQL(Database):
             propertyId = self._lastId(cursor)
             for column in property.Columns:
                 self._createModelPropertyColumn(cursor, propertyId, column, libraryIndex)
-        cursor.commit()
 
     def _createModel(self, cursor : Cursor, libraryIndex : int, path : str, model : Materials.Model) -> None:
         pathIndex = self._createPath(cursor, libraryIndex, path)
@@ -675,11 +729,10 @@ class DatabaseMySQL(Database):
                         )
 
             for inherit in model.Inherited:
-                self._createInheritance(model.UUID, inherit, libraryIndex)
+                self._createInheritance(cursor, model.UUID, inherit, libraryIndex)
 
             for property in model.Properties.values():
                 self._createModelProperty(cursor, model.UUID, property, libraryIndex)
-        cursor.commit()
 
     def _updateModelPath(self, cursor : Cursor, libraryIndex : int, path : str, uuid : str) -> None:
         pathIndex = self._createPath(cursor, libraryIndex, path)
@@ -694,7 +747,6 @@ class DatabaseMySQL(Database):
                         (None if pathIndex == 0 else pathIndex),
                         uuid
                         )
-        cursor.commit()
 
     def _updateModelName(self, cursor : Cursor, libraryIndex : int, name : str, uuid : str) -> None:
         cursor.execute("SELECT model_id FROM model WHERE library_id = ? AND model_id = ?", libraryIndex, uuid)
@@ -708,7 +760,6 @@ class DatabaseMySQL(Database):
                         name,
                         uuid
                         )
-        cursor.commit()
 
     def _moveModel(self, cursor : Cursor, libraryIndex : int, path : str, uuid : str) -> None:
         pathIndex = self._createPath(cursor, libraryIndex, path)
@@ -722,7 +773,7 @@ class DatabaseMySQL(Database):
 
             # We already know the new library is writeable, but what about the old library?
             if oldLibraryIndex > 0:
-                if self._isReadOnly(oldLibraryIndex):
+                if self._isReadOnly(cursor, oldLibraryIndex):
                     raise DatabaseLibraryReadOnlyError()
             else:
                 raise DatabaseLibraryNotFound()
@@ -736,7 +787,6 @@ class DatabaseMySQL(Database):
                             pathIndex,
                             uuid
                             )
-        cursor.commit()
 
     def _updateModel(self, cursor : Cursor, libraryIndex : int, path : str, model : Materials.Model) -> None:
         pathIndex = self._createPath(cursor, libraryIndex, path)
@@ -765,7 +815,7 @@ class DatabaseMySQL(Database):
             # Do these deletes need to be smarter due to foreing key constraints?
             cursor.execute("DELETE FROM model_inheritance WHERE model_id = ?", model.UUID)
             for inherit in model.Inherited:
-                self._createInheritance(model.UUID, inherit, libraryIndex)
+                self._createInheritance(cursor, model.UUID, inherit, libraryIndex)
 
             cursor.execute("SELECT model_property_id, model_property_name FROM model_property WHERE model_id = ?", model.UUID)
             rows = cursor.fetchall()
@@ -779,7 +829,6 @@ class DatabaseMySQL(Database):
 
             for property in model.Properties.values():
                 self._updateModelProperty(cursor, model.UUID, property, libraryIndex)
-        cursor.commit()
 
     def _createInheritance(self, cursor : Cursor, modelUUID : str, inheritUUID : str, libraryIndex : int) -> None:
         cursor.execute("SELECT model_inheritance_id FROM model_inheritance WHERE model_id "
@@ -791,7 +840,6 @@ class DatabaseMySQL(Database):
             cursor.execute("INSERT INTO model_inheritance (model_id, inherits_id) "
                                     "VALUES (?, ?)", modelUUID, inheritUUID)
             self._foreignKeysRestore(cursor)
-        cursor.commit()
 
     def _getInherits(self, cursor : Cursor, uuid : str) -> list[str]:
         inherits = []
@@ -834,9 +882,8 @@ class DatabaseMySQL(Database):
 
         return columns
 
-    def _getModelProperties(self, uuid : str) -> list[Materials.ModelProperty]:
+    def _getModelProperties(self, cursor : Cursor, uuid : str) -> list[Materials.ModelProperty]:
         properties = []
-        cursor = self._cursor()
         cursor.execute("SELECT model_property_name, "
                                     "model_property_display_name, model_property_type, "
                                     "model_property_units, model_property_url, "
@@ -858,7 +905,7 @@ class DatabaseMySQL(Database):
 
         # This has to happen after the properties are retrieved to prevent nested queries
         for property in properties:
-            columns = self._getModelColumns(uuid, property.Name)
+            columns = self._getModelColumns(cursor, uuid, property.Name)
             for column in columns:
                 property.addColumn(column)
 
@@ -869,8 +916,8 @@ class DatabaseMySQL(Database):
     #
 
     def getMaterial(self, uuid: str) -> MaterialObjectType:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
             cursor.execute("SELECT library_id, GetFolder(folder_id) as folder_name, material_name, "
                                 "material_author, material_license, material_parent_uuid, "
                                 "material_description, material_url, material_reference FROM "
@@ -891,55 +938,65 @@ class DatabaseMySQL(Database):
             material.URL = row.material_url
             material.Reference = row.material_reference
 
-            library = self._getLibrary(row.library_id)
+            library = self._getLibrary(cursor, row.library_id)
 
-            tags = self._getTags(uuid)
+            tags = self._getTags(cursor, uuid)
             for tag in tags:
                 material.addTag(tag)
 
-            for model in self._getMaterialModels(uuid, True):
+            for model in self._getMaterialModels(cursor, uuid, True):
                 material.addPhysicalModel(model)
 
-            for model in self._getMaterialModels(uuid, False):
+            for model in self._getMaterialModels(cursor, uuid, False):
                 material.addAppearanceModel(model)
 
             # self.addModelProperties(material)
 
             # The actual properties are set by the model. We just need to load the values
-            properties = self._getMaterialProperties(uuid)
+            properties = self._getMaterialProperties(cursor, uuid)
             for name, value in properties.items():
                 material.setValue(name, value)
 
             return MaterialObjectType(library.name, material)
 
         except DatabaseMaterialNotFound as notFound:
+            cursor.rollback()
             # Rethrow
             raise notFound
         except Exception as ex:
+            cursor.rollback()
             print("Unable to get material:", ex)
             raise DatabaseMaterialNotFound(ex)
 
     def createMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
+        cursor = self._cursor()
         try:
-            libraryIndex = self._findLibrary(libraryName)
+            libraryIndex = self._findLibrary(cursor, libraryName)
             if libraryIndex > 0:
-                self._createMaterial(libraryIndex, path, material)
+                self._createMaterial(cursor, libraryIndex, path, material)
+            cursor.commit()
         except DatabaseMaterialExistsError as exists:
+            cursor.rollback()
             # Rethrow
             raise exists
         except Exception as ex:
+            cursor.rollback()
             print("Unable to create material:", ex)
             raise DatabaseMaterialCreationError(ex)
         
     def updateMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
+        cursor = self._cursor()
         try:
-            libraryIndex = self._findLibrary(libraryName)
+            libraryIndex = self._findLibrary(cursor, libraryName)
             if libraryIndex > 0:
-                self._updateMaterial(libraryIndex, path, material)
+                self._updateMaterial(cursor, libraryIndex, path, material)
+            cursor.commit()
         except DatabaseMaterialNotFound as notFound:
+            cursor.rollback()
             # Rethrow
             raise notFound
         except Exception as ex:
+            cursor.rollback()
             print("Unable to update material:", ex)
             raise DatabaseMaterialCreationError(ex)
 
@@ -956,8 +1013,8 @@ class DatabaseMySQL(Database):
         pass
 
     def materialExists(self, libraryName : str, uuid: str) -> bool:
+        cursor = self._cursor()
         try:
-            cursor = self._cursor()
             if not libraryName:
                 cursor.execute("SELECT COUNT(*) FROM material WHERE material_id = ?",
                             uuid)
@@ -966,16 +1023,15 @@ class DatabaseMySQL(Database):
                                 "WHERE l.library_name = ? AND m.material_id = ? AND l.library_id = m.library_id",
                             libraryName, uuid)
 
-            count = cursor.fetchone()[0]
-            return count > 0
-
+            rows = cursor.fetchone()
+            if rows:
+                return (rows[0] > 0)
         except Exception as ex:
             pass
         return False
 
-    def _createTag(self, materialUUID : str, tag : str, libraryIndex : int) -> None:
+    def _createTag(self, cursor : Cursor, materialUUID : str, tag : str, libraryIndex : int) -> None:
         tagId = 0
-        cursor = self._cursor()
         cursor.execute("SELECT material_tag_id FROM material_tag WHERE material_tag_name = ?", tag)
         row = cursor.fetchone()
         if row:
@@ -991,17 +1047,15 @@ class DatabaseMySQL(Database):
         if not row:
             cursor.execute("INSERT INTO material_tag_mapping (material_id, material_tag_id) "
                           "VALUES (?, ?)", materialUUID, tagId)
-        cursor.commit()
 
-    def _updateTags(self, materialUUID : str, tags : list[str], libraryIndex : int) -> None:
-        currentTags = self._getTags(materialUUID)
+    def _updateTags(self, cursor : Cursor, materialUUID : str, tags : list[str], libraryIndex : int) -> None:
+        currentTags = self._getTags(cursor, materialUUID)
         deleteTags = []
         for tag in currentTags:
             if tag not in tags:
                 deleteTags.append(tag)
 
         # Remove deleted tags
-        cursor = self._cursor()
         for tag in deleteTags:
             tagId = 0
             cursor.execute("SELECT material_tag_id FROM material_tag WHERE material_tag_name = ?", tag)
@@ -1011,16 +1065,14 @@ class DatabaseMySQL(Database):
 
                 cursor.execute("DELETE FROM material_tag_mapping "
                                         "WHERE material_id = ? AND material_tag_id = ?", materialUUID, tagId)
-        cursor.commit()
 
         # add new tags
         for tag in tags:
             if tag not in currentTags:
-                self._createTag(materialUUID, tag, libraryIndex)
+                self._createTag(cursor, materialUUID, tag, libraryIndex)
 
-    def _getTags(self, uuid : str) -> list[str]:
+    def _getTags(self, cursor : Cursor, uuid : str) -> list[str]:
         tags = []
-        cursor = self._cursor()
         cursor.execute("SELECT t.material_tag_name FROM material_tag t, material_tag_mapping m "
                           "WHERE m.material_id = ? AND m.material_tag_id = t.material_tag_id",
                        uuid)
@@ -1031,49 +1083,42 @@ class DatabaseMySQL(Database):
 
         return tags
 
-    def _createMaterialModel(self, materialUUID : str, modelUUID : str, libraryIndex : int) -> None:
-        cursor = self._cursor()
+    def _createMaterialModel(self, cursor : Cursor, materialUUID : str, modelUUID : str, libraryIndex : int) -> None:
         cursor.execute("INSERT IGNORE INTO material_models (material_id, model_id) "
                                 "VALUES (?, ?)", materialUUID, modelUUID)
-        cursor.commit()
 
-    def _updateMaterialModels(self, materialUUID : str, physicalUUIDs : list[str], appearanceUUIDs : list[str], libraryIndex : int) -> None:
+    def _updateMaterialModels(self, cursor : Cursor, materialUUID : str, physicalUUIDs : list[str], appearanceUUIDs : list[str], libraryIndex : int) -> None:
         deleteModels = []
-        physical = self._getMaterialModels(materialUUID, True)
+        physical = self._getMaterialModels(cursor, materialUUID, True)
         for model in physical:
             if not model in physicalUUIDs:
                 deleteModels.append(model)
-        appearance = self._getMaterialModels(materialUUID, False)
+        appearance = self._getMaterialModels(cursor, materialUUID, False)
         for model in appearance:
             if not model in appearanceUUIDs:
                 deleteModels.append(model)
-
-        cursor = self._cursor()
 
         # Delete removed models
         for model in deleteModels:
             cursor.execute("DELETE FROM material_models "
                     "WHERE material_id = ? AND model_id = ?", materialUUID, model)
-        cursor.commit()
 
         # Add new models
         for model in physicalUUIDs:
             if model not in physical:
-                self._createMaterialModel(materialUUID, model, libraryIndex)
+                self._createMaterialModel(cursor, materialUUID, model, libraryIndex)
         for model in appearanceUUIDs:
             if model not in appearance:
-                self._createMaterialModel(materialUUID, model, libraryIndex)
+                self._createMaterialModel(cursor, materialUUID, model, libraryIndex)
 
-    def _createMaterialPropertyValue(self, materialUUID : str, name : str, type : str, libraryIndex : int) -> int:
-        cursor = self._cursor()
+    def _createMaterialPropertyValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, libraryIndex : int) -> int:
         cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, material_property_type) "
                     "VALUES (?, ?, ?)",
                     materialUUID, name, type)
 
         return self._lastId(cursor)
 
-    def _updateMaterialPropertyValue(self, materialUUID : str, name : str, type : str, libraryIndex : int) -> int:
-        cursor = self._cursor()
+    def _updateMaterialPropertyValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, libraryIndex : int) -> int:
         cursor.execute("UPDATE material_property_value "
                     "SET material_property_type = ? "
                     "WHERE material_id = ? AND material_property_name = ?",
@@ -1081,9 +1126,8 @@ class DatabaseMySQL(Database):
 
         return self._lastId(cursor)
 
-    def _createStringValue(self, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-        cursor = self._cursor()
+    def _createStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
+        value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
 
         if value is not None:
             cursor.execute("INSERT INTO material_property_string_value "
@@ -1095,11 +1139,9 @@ class DatabaseMySQL(Database):
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, NULL)",
                         value_id)
-        cursor.commit()
 
-    def _updateStringValue(self, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        value_id = self._updateMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-        cursor = self._cursor()
+    def _updateStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
+        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
 
         if value is not None:
             cursor.execute("UPDATE material_property_string_value "
@@ -1111,11 +1153,9 @@ class DatabaseMySQL(Database):
                         " SET material_property_value = NULL"
                         " WHERE material_property_value_id = ?",
                         value_id)
-        cursor.commit()
 
-    def _createLongStringValue(self, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-        cursor = self._cursor()
+    def _createLongStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
+        value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
 
         if value is not None:
             cursor.execute("INSERT INTO material_property_long_string_value "
@@ -1127,11 +1167,9 @@ class DatabaseMySQL(Database):
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, NULL)",
                         value_id)
-        cursor.commit()
 
-    def _updateLongStringValue(self, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        value_id = self._updateMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-        cursor = self._cursor()
+    def _updateLongStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
+        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
 
         if value is not None:
             cursor.execute("UPDATE material_property_long_string_value "
@@ -1143,12 +1181,10 @@ class DatabaseMySQL(Database):
                         " SET material_property_value = NULL"
                         " WHERE material_property_value_id = ?",
                         value_id)
-        cursor.commit()
 
-    def _createListValue(self, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
+    def _createListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
         if list is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-            cursor = self._cursor()
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
 
             for entry in list:
                 cursor.execute("INSERT INTO material_property_string_value "
@@ -1156,11 +1192,9 @@ class DatabaseMySQL(Database):
                             " VALUES (?, ?)",
                             value_id, entry)
 
-            cursor.commit()
 
-    def _updateListValue(self, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
-        value_id = self._updateMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-        cursor = self._cursor()
+    def _updateListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
+        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
 
         # Remove and re-add any list entries
         cursor.execute("DELETE FROM material_property_string_value "
@@ -1172,12 +1206,10 @@ class DatabaseMySQL(Database):
                         " VALUES (?, ?)",
                         value_id, entry)
 
-        cursor.commit()
 
-    def _createLongListValue(self, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
+    def _createLongListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
         if list is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-            cursor = self._cursor()
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
 
             for entry in list:
                 cursor.execute("INSERT INTO material_property_long_string_value "
@@ -1185,11 +1217,8 @@ class DatabaseMySQL(Database):
                             " VALUES (?, ?)",
                             value_id, entry)
 
-            cursor.commit()
-
-    def _updateLongListValue(self, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
-        value_id = self._updateMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-        cursor = self._cursor()
+    def _updateLongListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
+        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
 
         # Remove and re-add any list entries
         cursor.execute("DELETE FROM material_property_long_string_value "
@@ -1201,12 +1230,9 @@ class DatabaseMySQL(Database):
                         " VALUES (?, ?)",
                         value_id, entry)
 
-        cursor.commit()
-
-    def _createArrayValue3D(self, materialUUID : str, name : str, propertyType : str, array : Materials.Array3D, libraryIndex : int) -> None:
+    def _createArrayValue3D(self, cursor : Cursor, materialUUID : str, name : str, propertyType : str, array : Materials.Array3D, libraryIndex : int) -> None:
         if array is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, propertyType, libraryIndex)
-            cursor = self._cursor()
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, propertyType, libraryIndex)
 
             rows = 0
             for depth in range(array.Depth):
@@ -1234,12 +1260,9 @@ class DatabaseMySQL(Database):
                                     " VALUES (?, ?, ?, ?, ?, ?)",
                                     value_id, row, column, depth, array.getRows(depth), value)
 
-            cursor.commit()
-
-    def _createArrayValue2D(self, materialUUID : str, name : str, propertyType : str, array : Materials.Array2D, libraryIndex : int) -> None:
+    def _createArrayValue2D(self, cursor : Cursor, materialUUID : str, name : str, propertyType : str, array : Materials.Array2D, libraryIndex : int) -> None:
         if array is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, propertyType, libraryIndex)
-            cursor = self._cursor()
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, propertyType, libraryIndex)
 
             cursor.execute("INSERT INTO material_property_array_description "
                         " (material_property_value_id, material_property_array_rows, "
@@ -1259,35 +1282,33 @@ class DatabaseMySQL(Database):
                                 " VALUES (?, ?, ?, ?)",
                                 value_id, row, column, value)
 
-            cursor.commit()
-
-    def _createMaterialProperty(self, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty, libraryIndex : int) -> None:
+    def _createMaterialProperty(self, cursor : Cursor, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty, libraryIndex : int) -> None:
         if property.Type == "2DArray" or \
            property.Type == "3DArray":
-            if material.hasPhysicalProperty(property.Name):
-                array = material.getPhysicalValue(property.Name)
+            if material.hasPhysicalProperty(cursor, property.Name):
+                array = material.getPhysicalValue(cursor, property.Name)
             else:
-                array = material.getAppearanceValue(property.Name)
+                array = material.getAppearanceValue(cursor, property.Name)
             if array.Dimensions == 2:
-                self._createArrayValue2D(materialUUID, property.Name, property.Type, array, libraryIndex)
+                self._createArrayValue2D(cursor, materialUUID, property.Name, property.Type, array, libraryIndex)
             else:
-                self._createArrayValue3D(materialUUID, property.Name, property.Type, array, libraryIndex)
+                self._createArrayValue3D(cursor, materialUUID, property.Name, property.Type, array, libraryIndex)
         elif property.Type == "List" or \
            property.Type == "FileList":
-            self._createListValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._createListValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
         elif property.Type == "ImageList":
-            self._createLongListValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._createLongListValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
         elif property.Type == "Quantity":
             if property.Empty:
                 return
-            self._createStringValue(materialUUID, property.Name, property.Type, property.Value.UserString, libraryIndex)
+            self._createStringValue(cursor, materialUUID, property.Name, property.Type, property.Value.UserString, libraryIndex)
         elif property.Type == "SVG" or \
             property.Type == "Image":
-            self._createLongStringValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._createLongStringValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
         else:
-            self._createStringValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._createStringValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
 
-    def _updateMaterialProperty(self, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty, libraryIndex : int) -> None:
+    def _updateMaterialProperty(self, cursor : Cursor, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty, libraryIndex : int) -> None:
         # if property.Type == "2DArray" or \
         #    property.Type == "3DArray":
         #     if material.hasPhysicalProperty(property.Name):
@@ -1300,42 +1321,37 @@ class DatabaseMySQL(Database):
         #         self._createArrayValue3D(materialUUID, property.Name, property.Type, array, libraryIndex)
         if property.Type == "List" or \
            property.Type == "FileList":
-            self._updateListValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._updateListValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
         elif property.Type == "ImageList":
-            self._updateLongListValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._updateLongListValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
         elif property.Type == "Quantity":
             if property.Empty:
                 return
-            self._updateStringValue(materialUUID, property.Name, property.Type, property.Value.UserString, libraryIndex)
+            self._updateStringValue(cursor, materialUUID, property.Name, property.Type, property.Value.UserString, libraryIndex)
         elif property.Type == "SVG" or \
             property.Type == "Image":
-            self._updateLongStringValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._updateLongStringValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
         else:
-            self._updateStringValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._updateStringValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
 
-    def _updateMaterialProperties(self, materialUUID : str, material : Materials.Material, libraryIndex : int) -> None:
-        properties = self._getMaterialProperties(materialUUID)
+    def _updateMaterialProperties(self, cursor : Cursor, materialUUID : str, material : Materials.Material, libraryIndex : int) -> None:
+        properties = self._getMaterialProperties(cursor, materialUUID)
         newProperties = material.PropertyObjects
         deleteProperties = []
         for name, value in properties.items():
             if name not in newProperties:
                 deleteProperties.append(name)
 
-        cursor = self._cursor()
         for name in deleteProperties:
             cursor.execute("DELETE FROM material_property_value "
                         "WHERE material_id = ? AND material_property_name = ?", materialUUID, name)
 
-        
-            material.setValue(name, value)
-
         for property in material.PropertyObjects.values():
-            self._updateMaterialProperty(material.UUID, material, property, libraryIndex)
+            self._updateMaterialProperty(cursor, material.UUID, material, property, libraryIndex)
 
-    def _createMaterial(self, libraryIndex : int, path : str, material : Materials.Material):
-        pathIndex = self._createPath(libraryIndex, path)
+    def _createMaterial(self, cursor : Cursor, libraryIndex : int, path : str, material : Materials.Material):
+        pathIndex = self._createPath(cursor, libraryIndex, path)
 
-        cursor = self._cursor()
         cursor.execute("SELECT material_id FROM material WHERE material_id = ?",
                        material.UUID)
         row = cursor.fetchone()
@@ -1364,26 +1380,23 @@ class DatabaseMySQL(Database):
                             )
 
             for tag in material.Tags:
-                self._createTag(material.UUID, tag, libraryIndex)
+                self._createTag(cursor, material.UUID, tag, libraryIndex)
 
             # print("{} Physical models".format(len(material.PhysicalModels)))
             for model in material.PhysicalModels:
-                self._createMaterialModel(material.UUID, model, libraryIndex)
+                self._createMaterialModel(cursor, material.UUID, model, libraryIndex)
 
             # print("{} Appearance models".format(len(material.AppearanceModels)))
             for model in material.AppearanceModels:
-                self._createMaterialModel(material.UUID, model, libraryIndex)
+                self._createMaterialModel(cursor, material.UUID, model, libraryIndex)
 
             # print("{} Properties".format(len(material.PropertyObjects)))
             for property in material.PropertyObjects.values():
-                self._createMaterialProperty(material.UUID, material, property, libraryIndex)
+                self._createMaterialProperty(cursor, material.UUID, material, property, libraryIndex)
 
-        cursor.commit()
+    def _updateMaterial(self, cursor : Cursor, libraryIndex : int, path : str, material : Materials.Material):
+        pathIndex = self._createPath(cursor, libraryIndex, path)
 
-    def _updateMaterial(self, libraryIndex : int, path : str, material : Materials.Material):
-        pathIndex = self._createPath(libraryIndex, path)
-
-        cursor = self._cursor()
         cursor.execute("SELECT material_id FROM material WHERE material_id = ?",
                        material.UUID)
         row = cursor.fetchone()
@@ -1412,15 +1425,12 @@ class DatabaseMySQL(Database):
                             material.UUID,
                             )
 
-            self._updateTags(material.UUID, material.Tags, libraryIndex)
-            self._updateMaterialModels(material.UUID, material.PhysicalModels, material.AppearanceModels, libraryIndex)
-            self._updateMaterialProperties(material.UUID, material, libraryIndex)
+            self._updateTags(cursor, material.UUID, material.Tags, libraryIndex)
+            self._updateMaterialModels(cursor, material.UUID, material.PhysicalModels, material.AppearanceModels, libraryIndex)
+            self._updateMaterialProperties(cursor, material.UUID, material, libraryIndex)
 
-        cursor.commit()
-
-    def _getMaterialModels(self, uuid : str, isPhysical : bool) -> list[int]:
+    def _getMaterialModels(self, cursor : Cursor, uuid : str, isPhysical : bool) -> list[int]:
         models = []
-        cursor = self._cursor()
         cursor.execute("SELECT m1.model_id FROM material_models m1, model m2 "
             "WHERE m1.material_id = ? AND m1.model_id = m2.model_id AND m2.model_type = ?",
                        uuid,
@@ -1432,8 +1442,7 @@ class DatabaseMySQL(Database):
 
         return models
 
-    def _getMaterialPropertyStringValue(self, materialPropertyValueId : int) -> str:
-        cursor = self._cursor()
+    def _getMaterialPropertyStringValue(self, cursor : Cursor, materialPropertyValueId : int) -> str | None:
         cursor.execute("SELECT material_property_value "
                         "FROM material_property_string_value "
                         "WHERE material_property_value_id = ?",
@@ -1444,8 +1453,7 @@ class DatabaseMySQL(Database):
 
         return row.material_property_value
 
-    def _getMaterialPropertyLongStringValue(self, materialPropertyValueId : int) -> str:
-        cursor = self._cursor()
+    def _getMaterialPropertyLongStringValue(self, cursor : Cursor, materialPropertyValueId : int) -> str | None:
         cursor.execute("SELECT material_property_value "
                         "FROM material_property_long_string_value "
                         "WHERE material_property_value_id = ?",
@@ -1456,8 +1464,7 @@ class DatabaseMySQL(Database):
 
         return row.material_property_value
 
-    def _getMaterialPropertyListValue(self, materialPropertyValueId : int) -> list[str]:
-        cursor = self._cursor()
+    def _getMaterialPropertyListValue(self, cursor : Cursor, materialPropertyValueId : int) -> list[str]:
         cursor.execute("SELECT material_property_value "
                         "FROM material_property_string_value "
                         "WHERE material_property_value_id = ? "
@@ -1470,8 +1477,7 @@ class DatabaseMySQL(Database):
 
         return list
 
-    def _getMaterialPropertyLongListValue(self, materialPropertyValueId : int) -> list[str]:
-        cursor = self._cursor()
+    def _getMaterialPropertyLongListValue(self, cursor : Cursor, materialPropertyValueId : int) -> list[str]:
         cursor.execute("SELECT material_property_value "
                         "FROM material_property_long_string_value "
                         "WHERE material_property_value_id = ? "
@@ -1484,8 +1490,7 @@ class DatabaseMySQL(Database):
 
         return list
 
-    def _getMaterialPropertyArray2D(self, materialPropertyValueId : int) -> Materials.Array2D:
-        cursor = self._cursor()
+    def _getMaterialPropertyArray2D(self, cursor : Cursor, materialPropertyValueId : int) -> Materials.Array2D:
         array=Materials.Array2D()
 
         cursor.execute("SELECT material_property_array_rows, material_property_array_columns "
@@ -1514,8 +1519,7 @@ class DatabaseMySQL(Database):
 
         return array
 
-    def _getMaterialPropertyArray3D(self, materialPropertyValueId : int) -> Materials.Array3D:
-        cursor = self._cursor()
+    def _getMaterialPropertyArray3D(self, cursor : Cursor, materialPropertyValueId : int) -> Materials.Array3D:
         array=Materials.Array3D()
 
         cursor.execute("SELECT material_property_array_depth, material_property_array_columns "
@@ -1555,24 +1559,23 @@ class DatabaseMySQL(Database):
 
         return array
 
-    def _getMaterialPropertyValue(self, materialPropertyValueId : int, type : str) -> Any:
+    def _getMaterialPropertyValue(self, cursor : Cursor, materialPropertyValueId : int, type : str) -> Any:
         if type == "2DArray":
-            return self._getMaterialPropertyArray2D(materialPropertyValueId)
+            return self._getMaterialPropertyArray2D(cursor, materialPropertyValueId)
         elif type == "3DArray":
-            return self._getMaterialPropertyArray3D(materialPropertyValueId)
+            return self._getMaterialPropertyArray3D(cursor, materialPropertyValueId)
         elif type == "SVG" or \
            type == "Image":
-            return self._getMaterialPropertyLongStringValue(materialPropertyValueId)
+            return self._getMaterialPropertyLongStringValue(cursor, materialPropertyValueId)
         elif type == "List" or \
            type == "FileList":
-            return self._getMaterialPropertyListValue(materialPropertyValueId)
+            return self._getMaterialPropertyListValue(cursor, materialPropertyValueId)
         elif type == "ImageList":
-            return self._getMaterialPropertyLongListValue(materialPropertyValueId)
+            return self._getMaterialPropertyLongListValue(cursor, materialPropertyValueId)
 
-        return self._getMaterialPropertyStringValue(materialPropertyValueId)
+        return self._getMaterialPropertyStringValue(cursor, materialPropertyValueId)
 
-    def _getMaterialProperties(self, uuid : str) -> dict[str,str]:
-        cursor = self._cursor()
+    def _getMaterialProperties(self, cursor : Cursor, uuid : str) -> dict[str,str]:
         cursor.execute("SELECT material_property_value_id, material_property_name, material_property_type "
                         "FROM material_property_value "
                         "WHERE material_id = ?",
@@ -1585,7 +1588,7 @@ class DatabaseMySQL(Database):
 
         properties = {}
         for key, value in propertyKeys.items():
-            properties[key] = self._getMaterialPropertyValue(value[0], value[1])
+            properties[key] = self._getMaterialPropertyValue(cursor, value[0], value[1])
 
         return properties
 

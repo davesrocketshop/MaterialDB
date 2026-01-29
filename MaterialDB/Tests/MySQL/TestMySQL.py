@@ -23,6 +23,7 @@ __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
 import unittest
+from pyodbc import Cursor
 
 from MaterialDB.Database.DatabaseMySQLTest import DatabaseMySQLTest
 from MaterialDB.util.UIPath import getUIPath
@@ -42,19 +43,9 @@ class MySQLTests(unittest.TestCase):
     def testConnection(self):
         # self.assertIsNone(self._db._connection)
         self._db._connect()
-        self.assertIsNotNone(self._db._connection)
+        self.assertIsNotNone(self._db._getConnection())
 
-    def testGetIcon(self):
-        icon = self._db._getIcon(bytearray(), "")
-        self.assertIsNone(icon)
-        icon = self._db._getIcon(bytearray(), None)
-        self.assertIsNone(icon)
-        icon = self._db._getIcon(None, "")
-        self.assertIsNone(icon)
-        icon = self._db._getIcon(None, None)
-        self.assertIsNone(icon)
-
-    def getFolderFunction(self, folderId):
+    def getFolderFunction(self, cursor : Cursor, folderId : int) -> str | None:
         cursor = self._db._cursor()
 
         cursor.execute("SELECT GetFolder(?) as folder_name", folderId)
@@ -65,19 +56,21 @@ class MySQLTests(unittest.TestCase):
         return None
 
     def testPaths(self):
-        self._db.createLibrary("TestPaths", None, "", False)
-        libraryId = self._db._findLibrary("TestPaths")
+        self._db.createLibrary("TestPaths", None,  False)
+        cursor = self._db._cursor()
+        libraryId = self._db._findLibrary(cursor, "TestPaths")
         self.assertNotEqual(libraryId, 0)
 
         # Create some paths
-        id1 = self._db._createPath(libraryId, "System/Resource/Tests")
-        id2 = self._db._createPath(libraryId, "System/Resource/Tests/Test1")
-        id3 = self._db._createPath(libraryId, "System/Resource/Tests/Test2")
-        id4 = self._db._createPath(libraryId, "System/Resource/Tests/Test3")
-        id5 = self._db._createPath(libraryId, "/User")
-        id6 = self._db._createPath(libraryId, "User/Henry")
-        id7 = self._db._createPath(libraryId, "/")
-        id8 = self._db._createPath(libraryId, "")
+        id1 = self._db._createPath(cursor, libraryId, "System/Resource/Tests")
+        id2 = self._db._createPath(cursor, libraryId, "System/Resource/Tests/Test1")
+        id3 = self._db._createPath(cursor, libraryId, "System/Resource/Tests/Test2")
+        id4 = self._db._createPath(cursor, libraryId, "System/Resource/Tests/Test3")
+        id5 = self._db._createPath(cursor, libraryId, "/User")
+        id6 = self._db._createPath(cursor, libraryId, "User/Henry")
+        id7 = self._db._createPath(cursor, libraryId, "/")
+        id8 = self._db._createPath(cursor, libraryId, "")
+        cursor.commit()
         self.assertNotEqual(id1, 0)
         self.assertNotEqual(id2, 0)
         self.assertNotEqual(id3, 0)
@@ -88,23 +81,23 @@ class MySQLTests(unittest.TestCase):
         self.assertNotEqual(id8, 0)
 
         # Check the paths
-        self.assertEqual(self._db._getPath(id1), "System/Resource/Tests")
-        self.assertEqual(self._db._getPath(id2), "System/Resource/Tests/Test1")
-        self.assertEqual(self._db._getPath(id3), "System/Resource/Tests/Test2")
-        self.assertEqual(self._db._getPath(id4), "System/Resource/Tests/Test3")
-        self.assertEqual(self._db._getPath(id5), "User")
-        self.assertEqual(self._db._getPath(id6), "User/Henry")
-        self.assertEqual(self._db._getPath(id7), "")
-        self.assertEqual(self._db._getPath(id8), "")
+        self.assertEqual(self._db._getPath(cursor,id1), "System/Resource/Tests")
+        self.assertEqual(self._db._getPath(cursor, id2), "System/Resource/Tests/Test1")
+        self.assertEqual(self._db._getPath(cursor, id3), "System/Resource/Tests/Test2")
+        self.assertEqual(self._db._getPath(cursor, id4), "System/Resource/Tests/Test3")
+        self.assertEqual(self._db._getPath(cursor, id5), "User")
+        self.assertEqual(self._db._getPath(cursor, id6), "User/Henry")
+        self.assertEqual(self._db._getPath(cursor, id7), "")
+        self.assertEqual(self._db._getPath(cursor, id8), "")
 
-        self.assertEqual(self.getFolderFunction(id1), "System/Resource/Tests")
-        self.assertEqual(self.getFolderFunction(id2), "System/Resource/Tests/Test1")
-        self.assertEqual(self.getFolderFunction(id3), "System/Resource/Tests/Test2")
-        self.assertEqual(self.getFolderFunction(id4), "System/Resource/Tests/Test3")
-        self.assertEqual(self.getFolderFunction(id5), "User")
-        self.assertEqual(self.getFolderFunction(id6), "User/Henry")
-        self.assertEqual(self.getFolderFunction(id7), "")
-        self.assertEqual(self.getFolderFunction(id8), "")
+        self.assertEqual(self.getFolderFunction(cursor, id1), "System/Resource/Tests")
+        self.assertEqual(self.getFolderFunction(cursor, id2), "System/Resource/Tests/Test1")
+        self.assertEqual(self.getFolderFunction(cursor, id3), "System/Resource/Tests/Test2")
+        self.assertEqual(self.getFolderFunction(cursor, id4), "System/Resource/Tests/Test3")
+        self.assertEqual(self.getFolderFunction(cursor, id5), "User")
+        self.assertEqual(self.getFolderFunction(cursor, id6), "User/Henry")
+        self.assertEqual(self.getFolderFunction(cursor, id7), "")
+        self.assertEqual(self.getFolderFunction(cursor, id8), "")
 
         folders = self._db.libraryFolders("TestPaths")
         self.assertEqual(len(folders), 9)

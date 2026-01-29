@@ -23,7 +23,7 @@ __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
 import pyodbc
-from pyodbc import Cursor
+from pyodbc import Cursor, Connection
 
 import FreeCAD
 
@@ -51,6 +51,10 @@ class Database:
         if _connection:
             _connection.close()
         _connection = None
+
+    def _getConnection(self) -> Connection | None:
+        global _connection
+        return _connection
 
     def _cursor(self, noDatabase : bool = False) -> Cursor:
         global _connection
