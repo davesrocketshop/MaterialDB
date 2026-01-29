@@ -23,20 +23,31 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
-class DatabaseCreationError(Exception):
+class DatabaseBaseError(Exception):
 
-    def __init__(self, error):
+    def __init__(self, message, error):
         self._error = error
-
-class DatabaseTableCreationError(Exception):
-
-    def __init__(self, error):
-        self._error = error
-
-class DatabaseConnectionError(Exception):
-
-    def __init__(self, message="Unable to connect"):
         self._message = message
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self._message)
+
+class DatabaseCreationError(DatabaseBaseError):
+
+    def __init__(self, message="Unable to create database", error=None):
+        super().__init__(message, error)
+
+class DatabaseTableCreationError(DatabaseBaseError):
+
+    def __init__(self, message="Unable to create tables", error=None):
+        super().__init__(message, error)
+
+class DatabaseConnectionError(DatabaseBaseError):
+
+    def __init__(self, message="Unable to connect", error=None):
+        super().__init__(message, error)
 
 #---
 #
@@ -44,44 +55,26 @@ class DatabaseConnectionError(Exception):
 #
 #---
 
-class DatabaseLibraryCreationError(Exception):
+class DatabaseLibraryCreationError(DatabaseBaseError):
 
-    def __init__(self, error):
-        self._error = error
+    def __init__(self, message="Unable to create library", error=None):
+        super().__init__(message, error)
 
-class DatabaseIconError(Exception):
+class DatabaseIconError(DatabaseBaseError):
 
-    def __init__(self, msg="Unable to set icon", error=None):
-        self._error = error
-        self.msg = msg
-
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+    def __init__(self, message="Unable to set icon", error=None):
+        super().__init__(message, error)
 
 
-class DatabaseLibraryNotFound(Exception):
+class DatabaseLibraryNotFound(DatabaseBaseError):
 
-    def __init__(self, msg="Library not found", error=None):
-        self._error = error
-        self.msg = msg
+    def __init__(self, message="Library not found", error=None):
+        super().__init__(message, error)
 
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+class DatabaseLibraryReadOnlyError(DatabaseBaseError):
 
-class DatabaseLibraryReadOnlyError(Exception):
-
-    def __init__(self, msg="Library is read only", error=None):
-        self._error = error
-        self.msg = msg
-
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+    def __init__(self, message="Library is read only", error=None):
+        super().__init__(message, error)
 
 #---
 #
@@ -89,10 +82,10 @@ class DatabaseLibraryReadOnlyError(Exception):
 #
 #---
 
-class DatabaseFolderCreationError(Exception):
+class DatabaseFolderCreationError(DatabaseBaseError):
 
-    def __init__(self, error):
-        self._error = error
+    def __init__(self, message = "Unable to create folder", error=None):
+        super().__init__(message, error)
 
 #---
 #
@@ -100,37 +93,25 @@ class DatabaseFolderCreationError(Exception):
 #
 #---
 
-class DatabaseModelCreationError(Exception):
+class DatabaseModelCreationError(DatabaseBaseError):
 
-    def __init__(self, error):
-        self._error = error
+    def __init__(self, message = "Unable to create model", error=None):
+        super().__init__(message, error)
 
-class DatabaseModelUpdateError(Exception):
+class DatabaseModelUpdateError(DatabaseBaseError):
 
-    def __init__(self, error):
-        self._error = error
+    def __init__(self, message = "Unable to update model", error=None):
+        super().__init__(message, error)
 
-class DatabaseModelExistsError(Exception):
+class DatabaseModelExistsError(DatabaseBaseError):
 
-    def __init__(self, error=None):
-        self._error = error
-        self.msg = "Model already exists"
+    def __init__(self, message = "Model already exists", error=None):
+        super().__init__(message, error)
 
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+class DatabaseModelNotFound(DatabaseBaseError):
 
-class DatabaseModelNotFound(Exception):
-
-    def __init__(self, error=None):
-        self._error = error
-        self.msg = "Model not found"
-
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+    def __init__(self, message = "Model not found", error=None):
+        super().__init__(message, error)
 
 #---
 #
@@ -138,49 +119,25 @@ class DatabaseModelNotFound(Exception):
 #
 #---
 
-class DatabaseMaterialCreationError(Exception):
+class DatabaseMaterialCreationError(DatabaseBaseError):
 
-    def __init__(self, error=None):
-        self._error = error
-        self.msg = "Unable to create Material"
+    def __init__(self, message = "Unable to create Material", error=None):
+        super().__init__(message, error)
 
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+class DatabaseMaterialUpdateError(DatabaseBaseError):
 
-class DatabaseMaterialUpdateError(Exception):
+    def __init__(self, message = "Unable to update Material", error=None):
+        super().__init__(message, error)
 
-    def __init__(self, error=None):
-        self._error = error
-        self.msg = "Unable to update Material"
+class DatabaseMaterialExistsError(DatabaseBaseError):
 
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+    def __init__(self, message = "Material already exists", error=None):
+        super().__init__(message, error)
 
-class DatabaseMaterialExistsError(Exception):
+class DatabaseMaterialNotFound(DatabaseBaseError):
 
-    def __init__(self, error=None):
-        self._error = error
-        self.msg = "Material already exists"
-
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
-
-class DatabaseMaterialNotFound(Exception):
-
-    def __init__(self, error=None):
-        self._error = error
-        self.msg = "Material not found"
-
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+    def __init__(self, message = "Material not found", error=None):
+        super().__init__(message, error)
 
 #---
 #
@@ -188,24 +145,12 @@ class DatabaseMaterialNotFound(Exception):
 #
 #---
 
-class DatabaseRenameError(Exception):
+class DatabaseRenameError(DatabaseBaseError):
 
-    def __init__(self, msg="Unable to rename object", error=None):
-        self._error = error
-        self.msg = msg
+    def __init__(self, message="Unable to rename object", error=None):
+        super().__init__(message, error)
 
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+class DatabaseDeleteError(DatabaseBaseError):
 
-class DatabaseDeleteError(Exception):
-
-    def __init__(self, msg="Unable to remove object", error=None):
-        self._error = error
-        self.msg = msg
-
-    def __str__(self):
-        if self._error is not None:
-            return repr(self._error)
-        return repr(self.msg)
+    def __init__(self, message="Unable to remove object", error=None):
+        super().__init__(message, error)

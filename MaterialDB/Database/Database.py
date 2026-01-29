@@ -111,7 +111,7 @@ class Database:
         except Exception as ex:
             print("Unable to create connection:", ex)
             self._disconnect()
-            raise DatabaseConnectionError(ex)
+            raise DatabaseConnectionError(error=ex)
 
     def _lastId(self, cursor : Cursor) -> int:
         """Returns the last insertion id"""

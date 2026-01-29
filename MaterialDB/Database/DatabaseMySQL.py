@@ -125,7 +125,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to create library '{}':".format(libraryName), ex)
-            raise DatabaseLibraryCreationError(ex)
+            raise DatabaseLibraryCreationError(error=ex)
 
     def renameLibrary(self, oldName: str, newName: str) -> None:
         cursor = self._cursor()
@@ -133,7 +133,7 @@ class DatabaseMySQL(Database):
             cursor.execute("SELECT library_id FROM library WHERE library_name = ?", newName)
             row = cursor.fetchone()
             if row:
-                raise DatabaseRenameError(msg="Destination library name already exists")
+                raise DatabaseRenameError(message="Destination library name already exists")
 
             cursor.execute("UPDATE library SET library_name = ? "
                                 "WHERE library_name = ?", newName, oldName)
@@ -224,7 +224,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to get library materials:", ex)
-            raise DatabaseMaterialNotFound(ex)
+            raise DatabaseMaterialNotFound(error=ex)
 
     def libraryFolders(self, libraryName: str) -> list[str]:
         cursor = self._cursor()
@@ -254,7 +254,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to get library folders:", ex)
-            raise DatabaseMaterialNotFound(ex)
+            raise DatabaseMaterialNotFound(error=ex)
 
 
     def _findLibrary(self, cursor : Cursor, name : str) -> int:
@@ -305,7 +305,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to create folder:", ex)
-            raise DatabaseFolderCreationError(ex)
+            raise DatabaseFolderCreationError(error=ex)
 
     def renameFolder(self, libraryName: str, oldPath: str, newPath: str) -> None:
         cursor = self._cursor()
@@ -516,7 +516,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to get model:", ex)
-            raise DatabaseModelNotFound(ex)
+            raise DatabaseModelNotFound(error=ex)
 
     def createModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
         cursor = self._cursor()
@@ -533,7 +533,7 @@ class DatabaseMySQL(Database):
             cursor.rollback()
             # print("Exception '{}'".format(type(ex).__name__))
             print("Unable to create model:", ex)
-            raise DatabaseModelCreationError(ex)
+            raise DatabaseModelCreationError(error=ex)
 
     def updateModel(self, libraryName: str, path: str, model: Materials.Model) -> None:
         cursor = self._cursor()
@@ -551,7 +551,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to update model:", ex)
-            raise DatabaseModelUpdateError(ex)
+            raise DatabaseModelUpdateError(error=ex)
         
     def setModelPath(self, libraryName: str, path: str, uuid: str) -> None:
         cursor = self._cursor()
@@ -569,7 +569,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to update model:", ex)
-            raise DatabaseModelUpdateError(ex)
+            raise DatabaseModelUpdateError(error=ex)
 
     def renameModel(self, libraryName: str, name: str, uuid: str) -> None:
         cursor = self._cursor()
@@ -587,7 +587,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to update model:", ex)
-            raise DatabaseModelUpdateError(ex)
+            raise DatabaseModelUpdateError(error=ex)
 
     def moveModel(self, libraryName: str, path: str, uuid: str) -> None:
         cursor = self._cursor()
@@ -605,7 +605,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to update model:", ex)
-            raise DatabaseModelUpdateError(ex)
+            raise DatabaseModelUpdateError(error=ex)
 
     def removeModel(self, uuid: str) -> None:
         cursor = self._cursor()
@@ -966,7 +966,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to get material:", ex)
-            raise DatabaseMaterialNotFound(ex)
+            raise DatabaseMaterialNotFound(error=ex)
 
     def createMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
         cursor = self._cursor()
@@ -982,7 +982,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to create material:", ex)
-            raise DatabaseMaterialCreationError(ex)
+            raise DatabaseMaterialCreationError(error=ex)
         
     def updateMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
         cursor = self._cursor()
@@ -998,7 +998,7 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to update material:", ex)
-            raise DatabaseMaterialCreationError(ex)
+            raise DatabaseMaterialCreationError(error=ex)
 
     def setMaterialPath(self, libraryName: str, path: str, uuid: str) -> None:
         pass
