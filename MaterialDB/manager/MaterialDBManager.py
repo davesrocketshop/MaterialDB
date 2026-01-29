@@ -150,7 +150,7 @@ class MaterialsDBManager(MaterialManagerExternal):
         return self._db.getMaterial(uuid)
 
     def addMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
-        # print("addMaterial('{}', '{}', '{}')".format(libraryName, path, material.Name))
+        print("addMaterial('{}', '{}', '{}')".format(libraryName, path, material.Name))
         self._db.createMaterial(libraryName, path, material)
 
     def migrateMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:

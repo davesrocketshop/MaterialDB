@@ -132,6 +132,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
             "material_tag_mapping" : """CREATE TABLE IF NOT EXISTS material_tag_mapping (
                         material_id CHAR(36) NOT NULL,
                         material_tag_id INTEGER NOT NULL,
+                        PRIMARY KEY (material_id, material_tag_id),
                         FOREIGN KEY (material_id)
                             REFERENCES material(material_id)
                             ON DELETE CASCADE,
@@ -142,6 +143,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
             "material_models" : """CREATE TABLE IF NOT EXISTS material_models (
                         material_id CHAR(36) NOT NULL,
                         model_id CHAR(36) NOT NULL,
+                        PRIMARY KEY (material_id, material_tag_id),
                         FOREIGN KEY (material_id)
                             REFERENCES material(material_id)
                             ON DELETE CASCADE,

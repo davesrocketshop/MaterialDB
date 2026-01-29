@@ -140,8 +140,25 @@ class DatabaseModelNotFound(Exception):
 
 class DatabaseMaterialCreationError(Exception):
 
-    def __init__(self, error):
+    def __init__(self, error=None):
         self._error = error
+        self.msg = "Unable to create Material"
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
+
+class DatabaseMaterialUpdateError(Exception):
+
+    def __init__(self, error=None):
+        self._error = error
+        self.msg = "Unable to update Material"
+
+    def __str__(self):
+        if self._error is not None:
+            return repr(self._error)
+        return repr(self.msg)
 
 class DatabaseMaterialExistsError(Exception):
 

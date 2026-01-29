@@ -949,7 +949,16 @@ class DatabaseMySQL(Database):
             raise DatabaseMaterialCreationError(ex)
         
     def updateMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
-        pass
+        try:
+            libraryIndex = self._findLibrary(libraryName)
+            if libraryIndex > 0:
+                self._updateMaterial(libraryIndex, path, material)
+        except DatabaseMaterialNotFound as notFound:
+            # Rethrow
+            raise notFound
+        except Exception as ex:
+            print("Unable to update material:", ex)
+            raise DatabaseMaterialCreationError(ex)
 
     def setMaterialPath(self, libraryName: str, path: str, uuid: str) -> None:
         pass
@@ -1001,6 +1010,31 @@ class DatabaseMySQL(Database):
                           "VALUES (?, ?)", materialUUID, tagId)
         cursor.commit()
 
+    def _updateTags(self, materialUUID : str, tags : list[str], libraryIndex : int) -> None:
+        currentTags = self._getTags(materialUUID)
+        deleteTags = []
+        for tag in currentTags:
+            if tag not in tags:
+                deleteTags.append(tag)
+
+        # Remove deleted tags
+        cursor = self._cursor()
+        for tag in deleteTags:
+            tagId = 0
+            cursor.execute("SELECT material_tag_id FROM material_tag WHERE material_tag_name = ?", tag)
+            row = cursor.fetchone()
+            if row:
+                tagId = row.material_tag_id
+
+                cursor.execute("DELETE FROM material_tag_mapping "
+                                        "WHERE material_id = ? AND material_tag_id = ?", materialUUID, tagId)
+        cursor.commit()
+
+        # add new tags
+        for tag in tags:
+            if tag not in currentTags:
+                self._createTag(materialUUID, tag, libraryIndex)
+
     def _getTags(self, uuid : str) -> list[str]:
         tags = []
         cursor = self._cursor()
@@ -1016,15 +1050,38 @@ class DatabaseMySQL(Database):
 
     def _createMaterialModel(self, materialUUID : str, modelUUID : str, libraryIndex : int) -> None:
         cursor = self._cursor()
-        cursor.execute("SELECT material_id FROM material_models WHERE material_id = ? AND model_id = ?",
-                       materialUUID, modelUUID)
-        row = cursor.fetchone()
-        if not row:
-            cursor.execute("INSERT INTO material_models (material_id, model_id) "
-                                    "VALUES (?, ?)", materialUUID, modelUUID)
+        cursor.execute("INSERT IGNORE INTO material_models (material_id, model_id) "
+                                "VALUES (?, ?)", materialUUID, modelUUID)
         cursor.commit()
 
-    def _createMaterialPropertyValue(self, materialUUID : str, name : str, type : str, libraryIndex : int):
+    def _updateMaterialModels(self, materialUUID : str, physicalUUIDs : list[str], appearanceUUIDs : list[str], libraryIndex : int) -> None:
+        deleteModels = []
+        physical = self._getMaterialModels(materialUUID, True)
+        for model in physical:
+            if not model in physicalUUIDs:
+                deleteModels.append(model)
+        appearance = self._getMaterialModels(materialUUID, False)
+        for model in appearance:
+            if not model in appearanceUUIDs:
+                deleteModels.append(model)
+
+        cursor = self._cursor()
+
+        # Delete removed models
+        for model in deleteModels:
+            cursor.execute("DELETE FROM material_models "
+                    "WHERE material_id = ? AND model_id = ?", materialUUID, model)
+        cursor.commit()
+
+        # Add new models
+        for model in physicalUUIDs:
+            if model not in physical:
+                self._createMaterialModel(materialUUID, model, libraryIndex)
+        for model in appearanceUUIDs:
+            if model not in appearance:
+                self._createMaterialModel(materialUUID, model, libraryIndex)
+
+    def _createMaterialPropertyValue(self, materialUUID : str, name : str, type : str, libraryIndex : int) -> int:
         cursor = self._cursor()
         cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, material_property_type) "
                     "VALUES (?, ?, ?)",
@@ -1032,27 +1089,78 @@ class DatabaseMySQL(Database):
 
         return self._lastId(cursor)
 
-    def _createStringValue(self, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        if value is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-            cursor = self._cursor()
+    def _updateMaterialPropertyValue(self, materialUUID : str, name : str, type : str, libraryIndex : int) -> int:
+        cursor = self._cursor()
+        cursor.execute("UPDATE material_property_value "
+                    "SET material_property_type = ? "
+                    "WHERE material_id = ? AND material_property_name = ?",
+                    type, materialUUID, name)
 
+        return self._lastId(cursor)
+
+    def _createStringValue(self, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
+        value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
+        cursor = self._cursor()
+
+        if value is not None:
             cursor.execute("INSERT INTO material_property_string_value "
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, ?)",
                         value_id, value)
-            cursor.commit()
+        else:
+            cursor.execute("INSERT INTO material_property_string_value "
+                        " (material_property_value_id, material_property_value)"
+                        " VALUES (?, NULL)",
+                        value_id)
+        cursor.commit()
+
+    def _updateStringValue(self, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
+        value_id = self._updateMaterialPropertyValue(materialUUID, name, type, libraryIndex)
+        cursor = self._cursor()
+
+        if value is not None:
+            cursor.execute("UPDATE material_property_string_value "
+                        " SET material_property_value = ?"
+                        " WHERE material_property_value_id = ?",
+                        value, value_id)
+        else:
+            cursor.execute("UPDATE material_property_string_value "
+                        " SET material_property_value = NULL"
+                        " WHERE material_property_value_id = ?",
+                        value_id)
+        cursor.commit()
 
     def _createLongStringValue(self, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        if value is not None:
-            value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
-            cursor = self._cursor()
+        value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
+        cursor = self._cursor()
 
+        if value is not None:
             cursor.execute("INSERT INTO material_property_long_string_value "
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, ?)",
                         value_id, value)
-            cursor.commit()
+        else:
+            cursor.execute("INSERT INTO material_property_long_string_value "
+                        " (material_property_value_id, material_property_value)"
+                        " VALUES (?, NULL)",
+                        value_id)
+        cursor.commit()
+
+    def _updateLongStringValue(self, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
+        value_id = self._updateMaterialPropertyValue(materialUUID, name, type, libraryIndex)
+        cursor = self._cursor()
+
+        if value is not None:
+            cursor.execute("UPDATE material_property_long_string_value "
+                        " SET material_property_value = ?"
+                        " WHERE material_property_value_id = ?",
+                        value, value_id)
+        else:
+            cursor.execute("UPDATE material_property_long_string_value "
+                        " SET material_property_value = NULL"
+                        " WHERE material_property_value_id = ?",
+                        value_id)
+        cursor.commit()
 
     def _createListValue(self, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
         if list is not None:
@@ -1067,6 +1175,22 @@ class DatabaseMySQL(Database):
 
             cursor.commit()
 
+    def _updateListValue(self, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
+        value_id = self._updateMaterialPropertyValue(materialUUID, name, type, libraryIndex)
+        cursor = self._cursor()
+
+        # Remove and re-add any list entries
+        cursor.execute("DELETE FROM material_property_string_value "
+                        "WHERE material_property_value_id = ?",
+                        value_id)
+        for entry in list:
+            cursor.execute("INSERT INTO material_property_string_value "
+                        " (material_property_value_id, material_property_value)"
+                        " VALUES (?, ?)",
+                        value_id, entry)
+
+        cursor.commit()
+
     def _createLongListValue(self, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
         if list is not None:
             value_id = self._createMaterialPropertyValue(materialUUID, name, type, libraryIndex)
@@ -1079,6 +1203,22 @@ class DatabaseMySQL(Database):
                             value_id, entry)
 
             cursor.commit()
+
+    def _updateLongListValue(self, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
+        value_id = self._updateMaterialPropertyValue(materialUUID, name, type, libraryIndex)
+        cursor = self._cursor()
+
+        # Remove and re-add any list entries
+        cursor.execute("DELETE FROM material_property_long_string_value "
+                        "WHERE material_property_value_id = ?",
+                        value_id)
+        for entry in list:
+            cursor.execute("INSERT INTO material_property_long_string_value "
+                        " (material_property_value_id, material_property_value)"
+                        " VALUES (?, ?)",
+                        value_id, entry)
+
+        cursor.commit()
 
     def _createArrayValue3D(self, materialUUID : str, name : str, propertyType : str, array : Materials.Array3D, libraryIndex : int) -> None:
         if array is not None:
@@ -1164,6 +1304,51 @@ class DatabaseMySQL(Database):
         else:
             self._createStringValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
 
+    def _updateMaterialProperty(self, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty, libraryIndex : int) -> None:
+        # if property.Type == "2DArray" or \
+        #    property.Type == "3DArray":
+        #     if material.hasPhysicalProperty(property.Name):
+        #         array = material.getPhysicalValue(property.Name)
+        #     else:
+        #         array = material.getAppearanceValue(property.Name)
+        #     if array.Dimensions == 2:
+        #         self._createArrayValue2D(materialUUID, property.Name, property.Type, array, libraryIndex)
+        #     else:
+        #         self._createArrayValue3D(materialUUID, property.Name, property.Type, array, libraryIndex)
+        if property.Type == "List" or \
+           property.Type == "FileList":
+            self._updateListValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+        elif property.Type == "ImageList":
+            self._updateLongListValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+        elif property.Type == "Quantity":
+            if property.Empty:
+                return
+            self._updateStringValue(materialUUID, property.Name, property.Type, property.Value.UserString, libraryIndex)
+        elif property.Type == "SVG" or \
+            property.Type == "Image":
+            self._updateLongStringValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+        else:
+            self._updateStringValue(materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+
+    def _updateMaterialProperties(self, materialUUID : str, material : Materials.Material, libraryIndex : int) -> None:
+        properties = self._getMaterialProperties(materialUUID)
+        newProperties = material.PropertyObjects
+        deleteProperties = []
+        for name, value in properties.items():
+            if name not in newProperties:
+                deleteProperties.append(name)
+
+        cursor = self._cursor()
+        for name in deleteProperties:
+            cursor.execute("DELETE FROM material_property_value "
+                        "WHERE material_id = ? AND material_property_name = ?", materialUUID, name)
+
+        
+            material.setValue(name, value)
+
+        for property in material.PropertyObjects.values():
+            self._updateMaterialProperty(material.UUID, material, property, libraryIndex)
+
     def _createMaterial(self, libraryIndex : int, path : str, material : Materials.Material):
         pathIndex = self._createPath(libraryIndex, path)
 
@@ -1209,6 +1394,44 @@ class DatabaseMySQL(Database):
             # print("{} Properties".format(len(material.PropertyObjects)))
             for property in material.PropertyObjects.values():
                 self._createMaterialProperty(material.UUID, material, property, libraryIndex)
+
+        cursor.commit()
+
+    def _updateMaterial(self, libraryIndex : int, path : str, material : Materials.Material):
+        pathIndex = self._createPath(libraryIndex, path)
+
+        cursor = self._cursor()
+        cursor.execute("SELECT material_id FROM material WHERE material_id = ?",
+                       material.UUID)
+        row = cursor.fetchone()
+        if not row:
+            raise DatabaseMaterialNotFound()
+        else:
+            # Mass updates may insert models out of sequence creating a foreign key
+            # violation
+            self._foreignKeysIgnore(cursor)
+
+            cursor.execute("UPDATE material SET "
+                            "library_id = ?, folder_id = ?, "
+                            "material_name = ?, material_author = ?, material_license = ?, "
+                            "material_parent_uuid = ?, material_description = ?, material_url = ?, "
+                            "material_reference = ? "
+                            "WHERE material_id = ?",
+                            libraryIndex,
+                            (None if pathIndex == 0 else pathIndex),
+                            material.Name,
+                            material.Author,
+                            material.License,
+                            material.Parent,
+                            material.Description,
+                            material.URL,
+                            material.Reference,
+                            material.UUID,
+                            )
+
+            self._updateTags(material.UUID, material.Tags, libraryIndex)
+            self._updateMaterialModels(material.UUID, material.PhysicalModels, material.AppearanceModels, libraryIndex)
+            self._updateMaterialProperties(material.UUID, material, libraryIndex)
 
         cursor.commit()
 
