@@ -1127,18 +1127,12 @@ class DatabaseMySQL(Database):
         return self._lastId(cursor)
 
     def _createStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
-
         if value is not None:
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
             cursor.execute("INSERT INTO material_property_string_value "
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, ?)",
                         value_id, value)
-        else:
-            cursor.execute("INSERT INTO material_property_string_value "
-                        " (material_property_value_id, material_property_value)"
-                        " VALUES (?, NULL)",
-                        value_id)
 
     def _updateStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
         value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
@@ -1155,18 +1149,12 @@ class DatabaseMySQL(Database):
                         value_id)
 
     def _createLongStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
-
         if value is not None:
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
             cursor.execute("INSERT INTO material_property_long_string_value "
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, ?)",
                         value_id, value)
-        else:
-            cursor.execute("INSERT INTO material_property_long_string_value "
-                        " (material_property_value_id, material_property_value)"
-                        " VALUES (?, NULL)",
-                        value_id)
 
     def _updateLongStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
         value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
@@ -1285,10 +1273,10 @@ class DatabaseMySQL(Database):
     def _createMaterialProperty(self, cursor : Cursor, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty, libraryIndex : int) -> None:
         if property.Type == "2DArray" or \
            property.Type == "3DArray":
-            if material.hasPhysicalProperty(cursor, property.Name):
-                array = material.getPhysicalValue(cursor, property.Name)
+            if material.hasPhysicalProperty(property.Name):
+                array = material.getPhysicalValue(property.Name)
             else:
-                array = material.getAppearanceValue(cursor, property.Name)
+                array = material.getAppearanceValue(property.Name)
             if array.Dimensions == 2:
                 self._createArrayValue2D(cursor, materialUUID, property.Name, property.Type, array, libraryIndex)
             else:

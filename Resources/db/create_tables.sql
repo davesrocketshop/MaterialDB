@@ -132,7 +132,7 @@ DROP TABLE IF EXISTS material_models;
 CREATE TABLE material_models (
     material_id CHAR(36) NOT NULL,
     model_id CHAR(36) NOT NULL,
-    PRIMARY KEY (material_id, material_tag_id),
+    PRIMARY KEY (material_id, model_id),
 	FOREIGN KEY (material_id)
         REFERENCES material(material_id)
 		ON DELETE CASCADE,
