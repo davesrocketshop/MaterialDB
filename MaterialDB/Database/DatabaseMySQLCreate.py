@@ -265,7 +265,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                 cursor.execute(self._tables[table])
             cursor.commit()
         except Exception as err:
-            raise DatabaseTableCreationError(err)
+            raise DatabaseTableCreationError(error=err)
 
     def dropFunctions(self):
         try:
@@ -286,7 +286,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                 cursor.execute(self._functions[function])
             cursor.commit()
         except Exception as err:
-            raise DatabaseTableCreationError(err)
+            raise DatabaseTableCreationError(error=err)
 
     def createDatabase(self, dbName):
         # Force a fresh connection
@@ -309,7 +309,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
         except Exception as err:
             print(err)
             self._disconnect()
-            raise DatabaseCreationError(err)
+            raise DatabaseCreationError(error=err)
 
         # Force a reconnection with the newly created database
         self._disconnect()

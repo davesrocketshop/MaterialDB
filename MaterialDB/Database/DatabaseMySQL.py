@@ -1111,68 +1111,91 @@ class DatabaseMySQL(Database):
             if model not in appearance:
                 self._createMaterialModel(cursor, materialUUID, model, libraryIndex)
 
-    def _createMaterialPropertyValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, libraryIndex : int) -> int:
+    def _createMaterialPropertyValue(self, cursor : Cursor, materialUUID : str, name : str, type : str) -> int:
         cursor.execute("INSERT INTO material_property_value (material_id, material_property_name, material_property_type) "
                     "VALUES (?, ?, ?)",
                     materialUUID, name, type)
 
         return self._lastId(cursor)
 
-    def _updateMaterialPropertyValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, libraryIndex : int) -> int:
-        cursor.execute("UPDATE material_property_value "
-                    "SET material_property_type = ? "
-                    "WHERE material_id = ? AND material_property_name = ?",
-                    type, materialUUID, name)
+    def _updateMaterialPropertyValue(self, cursor : Cursor, materialUUID : str, name : str, type : str) -> int:
+        cursor.execute("SELECT material_property_value_id FROM material_property_value "
+                          "WHERE material_id = ? AND material_property_name= ?",
+                       materialUUID, name)
 
-        return self._lastId(cursor)
+        row = cursor.fetchone()
+        if row:
+            value_id = row.material_property_value_id
+        else:
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type)
+        return value_id
 
-    def _createStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
+    def _deleteMaterialPropertyValue(self, cursor : Cursor, materialUUID : str, name : str) -> None:
+        cursor.execute("DELETE FROM material_property_value "
+                          "WHERE material_id = ? AND material_property_name= ?",
+                       materialUUID, name)
+
+    def _createStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str) -> None:
         if value is not None:
-            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type)
             cursor.execute("INSERT INTO material_property_string_value "
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, ?)",
                         value_id, value)
 
-    def _updateStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
-
+    def _updateStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str) -> None:
         if value is not None:
-            cursor.execute("UPDATE material_property_string_value "
-                        " SET material_property_value = ?"
-                        " WHERE material_property_value_id = ?",
-                        value, value_id)
-        else:
-            cursor.execute("UPDATE material_property_string_value "
-                        " SET material_property_value = NULL"
-                        " WHERE material_property_value_id = ?",
+            value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type)
+            cursor.execute("SELECT material_property_string_value_id FROM material_property_string_value "
+                            "WHERE material_property_value_id = ?",
                         value_id)
 
-    def _createLongStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
+            row = cursor.fetchone()
+            if row:
+                cursor.execute("UPDATE material_property_string_value "
+                            " SET material_property_value = ?"
+                            " WHERE material_property_value_id = ?",
+                            value, value_id)
+            else:
+                cursor.execute("INSERT INTO material_property_string_value "
+                            " (material_property_value_id, material_property_value)"
+                            " VALUES (?, ?)",
+                            value_id, value)
+        else:
+            self._deleteMaterialPropertyValue(cursor, materialUUID, name)
+
+    def _createLongStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str) -> None:
         if value is not None:
-            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type)
             cursor.execute("INSERT INTO material_property_long_string_value "
                         " (material_property_value_id, material_property_value)"
                         " VALUES (?, ?)",
                         value_id, value)
 
-    def _updateLongStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str, libraryIndex : int) -> None:
-        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
-
+    def _updateLongStringValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, value : str) -> None:
         if value is not None:
-            cursor.execute("UPDATE material_property_long_string_value "
-                        " SET material_property_value = ?"
-                        " WHERE material_property_value_id = ?",
-                        value, value_id)
-        else:
-            cursor.execute("UPDATE material_property_long_string_value "
-                        " SET material_property_value = NULL"
-                        " WHERE material_property_value_id = ?",
+            value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type)
+            cursor.execute("SELECT material_property_long_string_value_id FROM material_property_long_string_value "
+                            "WHERE material_property_value_id = ?",
                         value_id)
 
-    def _createListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
+            row = cursor.fetchone()
+            if row:
+                cursor.execute("UPDATE material_property_long_string_value "
+                            " SET material_property_value = ?"
+                            " WHERE material_property_value_id = ?",
+                            value, value_id)
+            else:
+                cursor.execute("INSERT INTO material_property_long_string_value "
+                            " (material_property_value_id, material_property_value)"
+                            " VALUES (?, ?)",
+                            value_id, value)
+        else:
+            self._deleteMaterialPropertyValue(cursor, materialUUID, name)
+
+    def _createListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str]) -> None:
         if list is not None:
-            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type)
 
             for entry in list:
                 cursor.execute("INSERT INTO material_property_string_value "
@@ -1181,8 +1204,8 @@ class DatabaseMySQL(Database):
                             value_id, entry)
 
 
-    def _updateListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
-        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
+    def _updateListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str]) -> None:
+        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type)
 
         # Remove and re-add any list entries
         cursor.execute("DELETE FROM material_property_string_value "
@@ -1195,9 +1218,9 @@ class DatabaseMySQL(Database):
                         value_id, entry)
 
 
-    def _createLongListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
+    def _createLongListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str]) -> None:
         if list is not None:
-            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, type)
 
             for entry in list:
                 cursor.execute("INSERT INTO material_property_long_string_value "
@@ -1205,8 +1228,8 @@ class DatabaseMySQL(Database):
                             " VALUES (?, ?)",
                             value_id, entry)
 
-    def _updateLongListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str], libraryIndex : int) -> None:
-        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type, libraryIndex)
+    def _updateLongListValue(self, cursor : Cursor, materialUUID : str, name : str, type : str, list : list[str]) -> None:
+        value_id = self._updateMaterialPropertyValue(cursor, materialUUID, name, type)
 
         # Remove and re-add any list entries
         cursor.execute("DELETE FROM material_property_long_string_value "
@@ -1218,9 +1241,9 @@ class DatabaseMySQL(Database):
                         " VALUES (?, ?)",
                         value_id, entry)
 
-    def _createArrayValue3D(self, cursor : Cursor, materialUUID : str, name : str, propertyType : str, array : Materials.Array3D, libraryIndex : int) -> None:
+    def _createArrayValue3D(self, cursor : Cursor, materialUUID : str, name : str, propertyType : str, array : Materials.Array3D) -> None:
         if array is not None:
-            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, propertyType, libraryIndex)
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, propertyType)
 
             rows = 0
             for depth in range(array.Depth):
@@ -1248,9 +1271,9 @@ class DatabaseMySQL(Database):
                                     " VALUES (?, ?, ?, ?, ?, ?)",
                                     value_id, row, column, depth, array.getRows(depth), value)
 
-    def _createArrayValue2D(self, cursor : Cursor, materialUUID : str, name : str, propertyType : str, array : Materials.Array2D, libraryIndex : int) -> None:
+    def _createArrayValue2D(self, cursor : Cursor, materialUUID : str, name : str, propertyType : str, array : Materials.Array2D) -> None:
         if array is not None:
-            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, propertyType, libraryIndex)
+            value_id = self._createMaterialPropertyValue(cursor, materialUUID, name, propertyType)
 
             cursor.execute("INSERT INTO material_property_array_description "
                         " (material_property_value_id, material_property_array_rows, "
@@ -1270,7 +1293,7 @@ class DatabaseMySQL(Database):
                                 " VALUES (?, ?, ?, ?)",
                                 value_id, row, column, value)
 
-    def _createMaterialProperty(self, cursor : Cursor, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty, libraryIndex : int) -> None:
+    def _createMaterialProperty(self, cursor : Cursor, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty) -> None:
         if property.Type == "2DArray" or \
            property.Type == "3DArray":
             if material.hasPhysicalProperty(property.Name):
@@ -1278,25 +1301,25 @@ class DatabaseMySQL(Database):
             else:
                 array = material.getAppearanceValue(property.Name)
             if array.Dimensions == 2:
-                self._createArrayValue2D(cursor, materialUUID, property.Name, property.Type, array, libraryIndex)
+                self._createArrayValue2D(cursor, materialUUID, property.Name, property.Type, array)
             else:
-                self._createArrayValue3D(cursor, materialUUID, property.Name, property.Type, array, libraryIndex)
+                self._createArrayValue3D(cursor, materialUUID, property.Name, property.Type, array)
         elif property.Type == "List" or \
            property.Type == "FileList":
-            self._createListValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._createListValue(cursor, materialUUID, property.Name, property.Type, property.Value)
         elif property.Type == "ImageList":
-            self._createLongListValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._createLongListValue(cursor, materialUUID, property.Name, property.Type, property.Value)
         elif property.Type == "Quantity":
             if property.Empty:
                 return
-            self._createStringValue(cursor, materialUUID, property.Name, property.Type, property.Value.UserString, libraryIndex)
+            self._createStringValue(cursor, materialUUID, property.Name, property.Type, property.Value.UserString)
         elif property.Type == "SVG" or \
             property.Type == "Image":
-            self._createLongStringValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._createLongStringValue(cursor, materialUUID, property.Name, property.Type, property.Value)
         else:
-            self._createStringValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._createStringValue(cursor, materialUUID, property.Name, property.Type, property.Value)
 
-    def _updateMaterialProperty(self, cursor : Cursor, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty, libraryIndex : int) -> None:
+    def _updateMaterialProperty(self, cursor : Cursor, materialUUID : str, material : Materials.Material, property : Materials.MaterialProperty) -> None:
         # if property.Type == "2DArray" or \
         #    property.Type == "3DArray":
         #     if material.hasPhysicalProperty(property.Name):
@@ -1309,20 +1332,20 @@ class DatabaseMySQL(Database):
         #         self._createArrayValue3D(materialUUID, property.Name, property.Type, array, libraryIndex)
         if property.Type == "List" or \
            property.Type == "FileList":
-            self._updateListValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._updateListValue(cursor, materialUUID, property.Name, property.Type, property.Value)
         elif property.Type == "ImageList":
-            self._updateLongListValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._updateLongListValue(cursor, materialUUID, property.Name, property.Type, property.Value)
         elif property.Type == "Quantity":
             if property.Empty:
                 return
-            self._updateStringValue(cursor, materialUUID, property.Name, property.Type, property.Value.UserString, libraryIndex)
+            self._updateStringValue(cursor, materialUUID, property.Name, property.Type, property.Value.UserString)
         elif property.Type == "SVG" or \
             property.Type == "Image":
-            self._updateLongStringValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._updateLongStringValue(cursor, materialUUID, property.Name, property.Type, property.Value)
         else:
-            self._updateStringValue(cursor, materialUUID, property.Name, property.Type, property.Value, libraryIndex)
+            self._updateStringValue(cursor, materialUUID, property.Name, property.Type, property.Value)
 
-    def _updateMaterialProperties(self, cursor : Cursor, materialUUID : str, material : Materials.Material, libraryIndex : int) -> None:
+    def _updateMaterialProperties(self, cursor : Cursor, materialUUID : str, material : Materials.Material) -> None:
         properties = self._getMaterialProperties(cursor, materialUUID)
         newProperties = material.PropertyObjects
         deleteProperties = []
@@ -1335,7 +1358,7 @@ class DatabaseMySQL(Database):
                         "WHERE material_id = ? AND material_property_name = ?", materialUUID, name)
 
         for property in material.PropertyObjects.values():
-            self._updateMaterialProperty(cursor, material.UUID, material, property, libraryIndex)
+            self._updateMaterialProperty(cursor, material.UUID, material, property)
 
     def _createMaterial(self, cursor : Cursor, libraryIndex : int, path : str, material : Materials.Material):
         pathIndex = self._createPath(cursor, libraryIndex, path)
@@ -1380,7 +1403,7 @@ class DatabaseMySQL(Database):
 
             # print("{} Properties".format(len(material.PropertyObjects)))
             for property in material.PropertyObjects.values():
-                self._createMaterialProperty(cursor, material.UUID, material, property, libraryIndex)
+                self._createMaterialProperty(cursor, material.UUID, material, property)
 
     def _updateMaterial(self, cursor : Cursor, libraryIndex : int, path : str, material : Materials.Material):
         pathIndex = self._createPath(cursor, libraryIndex, path)
@@ -1415,7 +1438,7 @@ class DatabaseMySQL(Database):
 
             self._updateTags(cursor, material.UUID, material.Tags, libraryIndex)
             self._updateMaterialModels(cursor, material.UUID, material.PhysicalModels, material.AppearanceModels, libraryIndex)
-            self._updateMaterialProperties(cursor, material.UUID, material, libraryIndex)
+            self._updateMaterialProperties(cursor, material.UUID, material)
 
     def _getMaterialModels(self, cursor : Cursor, uuid : str, isPhysical : bool) -> list[int]:
         models = []

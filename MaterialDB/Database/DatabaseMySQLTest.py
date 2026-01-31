@@ -54,4 +54,4 @@ class DatabaseMySQLTest(DatabaseMySQLCreate):
         except Exception as ex:
             print("Unable to create connection:", ex)
             _connection = None
-            raise DatabaseConnectionError(ex)
+            raise DatabaseConnectionError(error=ex)
