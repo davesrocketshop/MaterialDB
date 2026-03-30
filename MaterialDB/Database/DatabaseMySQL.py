@@ -260,9 +260,8 @@ class DatabaseMySQL(Database):
     def librarySubFolders(self, libraryName: str, path: str) -> list[str]:
         cursor = self._cursor()
         try:
-            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", libraryName)
-            row = cursor.fetchone()
-            if not row:
+            libraryIndex = self._findLibrary(cursor, libraryName)
+            if libraryIndex == 0:
                 raise DatabaseLibraryNotFound()
 
             pathList = self._pathList(path)
@@ -270,10 +269,10 @@ class DatabaseMySQL(Database):
             for index in range(0, len(pathList)):
                 if parentIndex == 0:
                     cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
-                        " AND parent_id IS NULL", pathList[index], row.library_id)
+                        " AND parent_id IS NULL", pathList[index], libraryIndex)
                 else:
                     cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
-                        " AND parent_id IS ?", pathList[index], row.library_id, parentIndex)
+                        " AND parent_id = ?", pathList[index], libraryIndex, parentIndex)
                 row = cursor.fetchone()
                 if row:
                     parentIndex = row.folder_id
@@ -281,7 +280,7 @@ class DatabaseMySQL(Database):
                     raise DatabaseLibraryNotFound()
 
             cursor.execute("SELECT folder_name FROM folder "
-                           "WHERE library_id = ? AND parent_id = ?", row.library_id, parentIndex)
+                           "WHERE library_id = ? AND parent_id = ?", libraryIndex, parentIndex)
             rows = cursor.fetchall()
             folders = []
             for row in rows:
@@ -294,6 +293,8 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to get library subfolders:", ex)
+            # print(type(ex))
+            # traceback.print_exc() 
             raise DatabaseMaterialNotFound(error=ex)
 
     def _findLibrary(self, cursor : Cursor, name : str) -> int:
@@ -367,7 +368,7 @@ class DatabaseMySQL(Database):
                             " AND parent_id IS NULL", oldPathList[index], libraryIndex)
                     else:
                         cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
-                            " AND parent_id IS ?", oldPathList[index], libraryIndex, parentIndex)
+                            " AND parent_id = ?", oldPathList[index], libraryIndex, parentIndex)
                     row = cursor.fetchone()
                     if row:
                         parentIndex = row.folder_id
@@ -376,11 +377,11 @@ class DatabaseMySQL(Database):
                 if parentIndex == 0:
                     cursor.execute("UPDATE folder "
                                 "SET folder_name = ? "
-                                "WHERE parent_id IS NULL AND folder_name = ?", newPathList[-1], oldPathList[-1])
+                                "WHERE parent_id IS NULL AND folder_name = ? AND library_id = ?", newPathList[-1], oldPathList[-1], libraryIndex)
                 else:
                     cursor.execute("UPDATE folder "
                                 "SET folder_name = ? "
-                                "WHERE parent_id = ? AND folder_name = ?", newPathList[-1], parentIndex, oldPathList[-1])
+                                "WHERE parent_id = ? AND folder_name = ? AND library_id = ?", newPathList[-1], parentIndex, oldPathList[-1], libraryIndex)
                 if cursor.rowcount < 1:
                     raise DatabaseRenameError("Unable to update folder path")
             cursor.commit()
@@ -406,7 +407,7 @@ class DatabaseMySQL(Database):
                             " AND parent_id IS NULL", pathList[index], libraryIndex)
                     else:
                         cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
-                            " AND parent_id IS ?", pathList[index], libraryIndex, parentIndex)
+                            " AND parent_id = ?", pathList[index], libraryIndex, parentIndex)
                     row = cursor.fetchone()
                     if row:
                         parentIndex = row.folder_id
@@ -414,10 +415,10 @@ class DatabaseMySQL(Database):
                         raise DatabaseDeleteError("Folder path doesn't exist")
                 if parentIndex == 0:
                     cursor.execute("DELETE from folder "
-                                "WHERE parent_id IS NULL AND folder_name = ?", pathList[-1])
+                                "WHERE parent_id IS NULL AND folder_name = ? AND library_id = ?", pathList[-1], libraryIndex)
                 else:
                     cursor.execute("DELETE from folder "
-                                "WHERE parent_id = ? AND folder_name = ?", parentIndex, pathList[-1])
+                                "WHERE parent_id = ? AND folder_name = ? AND library_id = ?", parentIndex, pathList[-1], libraryIndex)
                 if cursor.rowcount < 1:
                     raise DatabaseDeleteError("Unable to delete folder")
             cursor.commit()
@@ -427,6 +428,44 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             raise DatabaseDeleteError(error=ex)
+        
+    def folderMaterials(self, libraryName: str, path: str) -> list[MaterialLibraryObjectType]:
+        cursor = self._cursor()
+        try:
+            materials = []
+            libraryIndex = self._findLibrary(cursor, libraryName)
+
+            pathList = self._pathList(path)
+            parentIndex = 0 # start at the root
+            if len(pathList) > 0:
+                for index in range(0, len(pathList) - 1):
+                    if parentIndex == 0:
+                        cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
+                            " AND parent_id IS NULL", pathList[index], libraryIndex)
+                    else:
+                        cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
+                            " AND parent_id = ?", pathList[index], libraryIndex, parentIndex)
+                    row = cursor.fetchone()
+                    if row:
+                        parentIndex = row.folder_id
+                    else:
+                        raise DatabaseMaterialNotFound("Folder path doesn't exist")
+                cursor.execute("SELECT material_id, GetFolder(folder_id) as folder_name, material_name"
+                            " FROM material"
+                            " WHERE folder_id = ? AND library_id = ?", parentIndex, libraryIndex)
+                # if parentIndex == 0:
+                #     cursor.execute("SELECT material_id FROM material WHERE folder_id IS NULL AND library_id = ?", libraryIndex)
+                # else:
+                #     cursor.execute("SELECT material_id FROM material WHERE folder_id = ? AND library_id = ?", parentIndex, libraryIndex)
+                rows = cursor.fetchall()
+                for row in rows:
+                    materials.append(MaterialLibraryObjectType(row.material_id, row.folder_name, row.material_name))
+            return materials
+        except DatabaseMaterialNotFound as folderMaterialsError:
+            raise folderMaterialsError
+        except Exception as ex:
+            print("Unable to get folder materials:", ex)
+            raise DatabaseMaterialNotFound(error=ex)
 
     def _pathList(self, path : str) -> list[str]:
         # Strip any leading "/"
@@ -1005,8 +1044,6 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to get material:", ex)
-            print(type(ex))
-            traceback.print_exc() 
             raise DatabaseMaterialNotFound(error=ex)
 
     def createMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
@@ -1329,13 +1366,10 @@ class DatabaseMySQL(Database):
                 for column, columnValue in enumerate(rowValue):
                     if columnValue is None:
                         value = None
-                        print(f"Column value(None): {value}")
                     elif hasattr(columnValue, "UserString"):
                         value = columnValue.UserString
-                        print(f"Column value(Quantity): {value}")
                     else:
                         value = columnValue
-                        print(f"Column value(float): {value}")
                     cursor.execute("INSERT INTO material_property_array_value "
                                 " (material_property_value_id, material_property_value_row, "
                                 "  material_property_value_column, material_property_value)"
@@ -1573,7 +1607,7 @@ class DatabaseMySQL(Database):
                        materialPropertyValueId)
         rows = cursor.fetchall()
         for row in rows:
-            print(f"row: {row.material_property_value_row} column: {row.material_property_value_column} value: {row.material_property_value}")
+            # print(f"row: {row.material_property_value_row} column: {row.material_property_value_column} value: {row.material_property_value}")
             array.setValue(row.material_property_value_row,
                             row.material_property_value_column,
                             row.material_property_value)

@@ -104,6 +104,11 @@ class MaterialsDBManager(MaterialManagerExternal):
         print("deleteRecursive('{0}', '{1}')".format(libraryName, path))
         self._db.deleteRecursive(libraryName, path)
 
+    def folderMaterials(self, libraryName: str, path: str) -> list[MaterialLibraryObjectType]:
+        """Returns a list of materials in the specified folder within the library"""
+        print("folderMaterials('{0}', '{1}')".format(libraryName, path))
+        return self._db.folderMaterials(libraryName, path)
+
     #
     # Model methods
     #
