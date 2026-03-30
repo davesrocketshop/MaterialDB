@@ -84,7 +84,10 @@ class MaterialsDBManager(MaterialManagerExternal):
     def libraryFolders(self, libraryName: str) -> list[str]:
         print("libraryFolders('{}')".format(libraryName))
         return self._db.libraryFolders(libraryName)
-
+    
+    def librarySubFolders(self, libraryName: str, path: str) -> list[str]:
+        print("librarySubFolders('{}', '{}')".format(libraryName, path))
+        return self._db.librarySubFolders(libraryName, path)
     #
     # Folder methods
     #

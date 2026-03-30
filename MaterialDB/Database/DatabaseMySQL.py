@@ -257,6 +257,44 @@ class DatabaseMySQL(Database):
             print("Unable to get library folders:", ex)
             raise DatabaseMaterialNotFound(error=ex)
 
+    def librarySubFolders(self, libraryName: str, path: str) -> list[str]:
+        cursor = self._cursor()
+        try:
+            cursor.execute("SELECT library_id FROM library WHERE library_name = ?", libraryName)
+            row = cursor.fetchone()
+            if not row:
+                raise DatabaseLibraryNotFound()
+
+            pathList = self._pathList(path)
+            parentIndex = 0 # start at the root
+            for index in range(0, len(pathList)):
+                if parentIndex == 0:
+                    cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
+                        " AND parent_id IS NULL", pathList[index], row.library_id)
+                else:
+                    cursor.execute("SELECT folder_id FROM folder WHERE folder_name = ? AND library_id = ?"
+                        " AND parent_id IS ?", pathList[index], row.library_id, parentIndex)
+                row = cursor.fetchone()
+                if row:
+                    parentIndex = row.folder_id
+                else:
+                    raise DatabaseLibraryNotFound()
+
+            cursor.execute("SELECT folder_name FROM folder "
+                           "WHERE library_id = ? AND parent_id = ?", row.library_id, parentIndex)
+            rows = cursor.fetchall()
+            folders = []
+            for row in rows:
+                folders.append(row.folder_name)
+
+            return folders
+        except DatabaseLibraryNotFound as notFound:
+            cursor.rollback()
+            raise notFound # Rethrow
+        except Exception as ex:
+            cursor.rollback()
+            print("Unable to get library subfolders:", ex)
+            raise DatabaseMaterialNotFound(error=ex)
 
     def _findLibrary(self, cursor : Cursor, name : str) -> int:
         cursor.execute("SELECT library_id FROM library WHERE library_name = ?", name)
@@ -1614,6 +1652,10 @@ class DatabaseMySQL(Database):
             properties[key] = self._getMaterialPropertyValue(cursor, value[0], value[1])
 
         return properties
+    
+    def _copyMaterial(self, cursor : Cursor, destinationLibraryIndex : int, path : str, materialUuid : str) -> None:
+        material = self.getMaterial(materialUuid)
+        self._createMaterial(cursor, destinationLibraryIndex, path, material)
 
     #
     # Support methods
