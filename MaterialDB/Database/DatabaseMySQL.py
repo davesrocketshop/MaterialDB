@@ -22,6 +22,7 @@
 __author__ = "David Carter"
 __url__ = "https://www.davesrocketshop.com"
 
+import traceback
 from typing import Any
 from pyodbc import Cursor
 
@@ -966,6 +967,8 @@ class DatabaseMySQL(Database):
         except Exception as ex:
             cursor.rollback()
             print("Unable to get material:", ex)
+            print(type(ex))
+            traceback.print_exc() 
             raise DatabaseMaterialNotFound(error=ex)
 
     def createMaterial(self, libraryName: str, path: str, material: Materials.Material) -> None:
@@ -1263,7 +1266,10 @@ class DatabaseMySQL(Database):
             for depth, depthValue in enumerate(arrayData):
                 for row, rowValue in enumerate(depthValue):
                     for column, columnValue in enumerate(rowValue):
-                        value = columnValue.UserString
+                        if columnValue is None:
+                            value = None
+                        else:
+                            value = columnValue.UserString
                         cursor.execute("INSERT INTO material_property_array_value "
                                     " (material_property_value_id, material_property_value_row, "
                                     "  material_property_value_column, material_property_value_depth, "
@@ -1283,10 +1289,15 @@ class DatabaseMySQL(Database):
             arrayData = array.Array
             for row, rowValue in enumerate(arrayData):
                 for column, columnValue in enumerate(rowValue):
-                    if hasattr(columnValue, "UserString"):
+                    if columnValue is None:
+                        value = None
+                        print(f"Column value(None): {value}")
+                    elif hasattr(columnValue, "UserString"):
                         value = columnValue.UserString
+                        print(f"Column value(Quantity): {value}")
                     else:
                         value = columnValue
+                        print(f"Column value(float): {value}")
                     cursor.execute("INSERT INTO material_property_array_value "
                                 " (material_property_value_id, material_property_value_row, "
                                 "  material_property_value_column, material_property_value)"
@@ -1524,6 +1535,7 @@ class DatabaseMySQL(Database):
                        materialPropertyValueId)
         rows = cursor.fetchall()
         for row in rows:
+            print(f"row: {row.material_property_value_row} column: {row.material_property_value_column} value: {row.material_property_value}")
             array.setValue(row.material_property_value_row,
                             row.material_property_value_column,
                             row.material_property_value)

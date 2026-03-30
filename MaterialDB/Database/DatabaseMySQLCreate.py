@@ -193,7 +193,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                         material_property_value_column INTEGER NOT NULL,
                         material_property_value_depth INTEGER NOT NULL DEFAULT -1,
                     	material_property_value_depth_rows INTEGER NOT NULL DEFAULT -1,
-                        material_property_value TEXT NOT NULL,
+                        material_property_value TEXT,
                         FOREIGN KEY (material_property_value_id)
                             REFERENCES material_property_value(material_property_value_id)
                             ON DELETE CASCADE
