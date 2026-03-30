@@ -26,8 +26,9 @@ CREATE TABLE folder (
 );
 
 DROP TABLE IF EXISTS model;
+DROP INDEX IF EXISTS model_model_id_index;
 CREATE TABLE model (
-    model_id CHAR(36) NOT NULL PRIMARY KEY,
+    model_id CHAR(36) NOT NULL,
 	library_id INTEGER NOT NULL,
 	folder_id INTEGER,
 	model_type ENUM('Physical', 'Appearance') NOT NULL,
@@ -35,6 +36,7 @@ CREATE TABLE model (
 	model_url VARCHAR(255),
 	model_description TEXT,
 	model_doi VARCHAR(255),
+    PRIMARY KEY (model_id, library_id),
 	FOREIGN KEY (library_id)
         REFERENCES library(library_id)
 		ON DELETE CASCADE,
@@ -42,6 +44,7 @@ CREATE TABLE model (
         REFERENCES folder(folder_id)
 		ON DELETE RESTRICT
 );
+CREATE INDEX model_model_id_index ON model (model_id);
 
 DROP TABLE IF EXISTS model_inheritance;
 CREATE TABLE model_inheritance (
@@ -87,8 +90,9 @@ CREATE TABLE model_property_column (
 );
 
 DROP TABLE IF EXISTS material;
+DROP INDEX IF EXISTS material_material_id_index;
 CREATE TABLE material (
-    material_id CHAR(36) NOT NULL PRIMARY KEY,
+    material_id CHAR(36) NOT NULL,
 	library_id INTEGER NOT NULL,
 	folder_id INTEGER,
 	material_name VARCHAR(255) NOT NULL,
@@ -98,6 +102,7 @@ CREATE TABLE material (
 	material_description TEXT,
 	material_url VARCHAR(255),
 	material_reference VARCHAR(255),
+    PRIMARY KEY (material_id, library_id),
 	FOREIGN KEY (library_id)
         REFERENCES library(library_id)
 		ON DELETE CASCADE,
@@ -108,6 +113,7 @@ CREATE TABLE material (
         REFERENCES material(material_id)
 		ON DELETE RESTRICT
 );
+CREATE INDEX material_material_id_index ON material (material_id);
 
 DROP TABLE IF EXISTS material_tag;
 CREATE TABLE material_tag (

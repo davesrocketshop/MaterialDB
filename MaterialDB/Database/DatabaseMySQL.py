@@ -1446,8 +1446,7 @@ class DatabaseMySQL(Database):
     def _createMaterial(self, cursor : Cursor, libraryIndex : int, path : str, material : Materials.Material):
         pathIndex = self._createPath(cursor, libraryIndex, path)
 
-        cursor.execute("SELECT material_id FROM material WHERE material_id = ?",
-                       material.UUID)
+        cursor.execute("SELECT material_id FROM material WHERE material_id = ? AND library_id = ?", material.UUID, libraryIndex)
         row = cursor.fetchone()
         if row:
             raise DatabaseMaterialExistsError()

@@ -52,7 +52,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                         		ON DELETE CASCADE
                         )""",
             "model" :   """CREATE TABLE IF NOT EXISTS model (
-                            model_id CHAR(36) NOT NULL PRIMARY KEY,
+                            model_id CHAR(36) NOT NULL,
                             library_id INTEGER NOT NULL,
                             folder_id INTEGER,
                             model_type ENUM('Physical', 'Appearance') NOT NULL,
@@ -60,6 +60,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             model_url VARCHAR(255),
                             model_description TEXT,
                             model_doi VARCHAR(255),
+                            PRIMARY KEY (model_id, library_id),
                             FOREIGN KEY (library_id)
                                 REFERENCES library(library_id)
                                 ON DELETE CASCADE,
@@ -105,7 +106,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                                 ON DELETE CASCADE
                         )""",
             "material" : """CREATE TABLE IF NOT EXISTS material (
-                            material_id CHAR(36) NOT NULL PRIMARY KEY,
+                            material_id CHAR(36) NOT NULL,
                             library_id INTEGER NOT NULL,
                             folder_id INTEGER,
                             material_name VARCHAR(255) NOT NULL,
@@ -115,6 +116,7 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             material_description TEXT,
                             material_url VARCHAR(255),
                             material_reference VARCHAR(255),
+                            PRIMARY KEY (material_id, library_id),
                             FOREIGN KEY (library_id)
                                 REFERENCES library(library_id)
                                 ON DELETE CASCADE,
@@ -199,6 +201,11 @@ class DatabaseMySQLCreate(DatabaseMySQL):
                             ON DELETE CASCADE
                     )"""
         }
+        self._indexes = {
+            "model_model_id_index" : """CREATE INDEX model_model_id_index ON model (model_id)""",
+            "material_material_id_index" : """CREATE INDEX material_material_id_index ON material (material_id)""",
+            "material_property_value_material_id_index" : "CREATE INDEX material_property_value_material_id_index ON material_property_value (material_id)"
+        }
         self._functions = {
             "GetFolder" : """CREATE FUNCTION IF NOT EXISTS GetFolder(id INTEGER)
                         RETURNS VARCHAR(1024) DETERMINISTIC
@@ -263,6 +270,27 @@ class DatabaseMySQLCreate(DatabaseMySQL):
 
             for table in self._tables:
                 cursor.execute(self._tables[table])
+            cursor.commit()
+        except Exception as err:
+            raise DatabaseTableCreationError(error=err)
+
+    def dropIndexes(self):
+        try:
+            cursor = self._cursor()
+
+            for index in self._indexes:
+                cursor.execute("DROP INDEX IF EXISTS {}".format(index))
+
+            cursor.commit()
+        except Exception as err:
+            print(err)
+
+    def createIndexes(self):
+        try:
+            cursor = self._cursor()
+
+            for index in self._indexes:
+                cursor.execute(self._indexes[index])
             cursor.commit()
         except Exception as err:
             raise DatabaseTableCreationError(error=err)
